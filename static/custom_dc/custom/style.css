@@ -1,0 +1,354 @@
+/**
+ * Copyright 2022 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* Fonts */
+
+@font-face {
+  font-display: auto;
+  font-family: "Calibre";
+  font-style: italic;
+  font-weight: 400;
+  src: url(https://www.rff.org/documents/3725/CalibreWeb-RegularItalic.svg#Calibre) format("svg"), url(/custom_dc/custom/fonts/CalibreWeb-RegularItalic.ttf) format("truetype"), url(/custom_dc/custom/fonts/CalibreWeb-RegularItalic.woff) format("woff")
+}
+
+@font-face {
+  font-display: auto;
+  font-family: "Calibre";
+  font-style: normal;
+  font-weight: 400;
+  src: url(https://www.rff.org/documents/3722/CalibreWeb-Regular.svg#Calibre) format("svg"), url(/custom_dc/custom/fonts/CalibreWeb-Regular.ttf) format("truetype"), url(/custom_dc/custom/fonts/CalibreWeb-Regular.woff) format("woff")
+}
+
+@font-face {
+  font-display: auto;
+  font-family: "Calibre";
+  font-style: italic;
+  font-weight: 700;
+  src: url(https://www.rff.org/documents/3731/CalibreWeb-SemiboldItalic.svg#Calibre) format("svg"), url(/custom_dc/custom/fonts/CalibreWeb-SemiboldItalic.ttf) format("truetype"), url(/custom_dc/custom/fonts/CalibreWeb-SemiboldItalic.woff) format("woff")
+}
+
+@font-face {
+  font-display: auto;
+  font-family: "Calibre";
+  font-style: normal;
+  font-weight: 700;
+  src: url(https://www.rff.org/documents/3728/CalibreWeb-Semibold.svg#Calibre) format("svg"), url(/custom_dc/custom/fonts/CalibreWeb-Semibold.ttf) format("truetype"), url(/custom_dc/custom/fonts/CalibreWeb-Semibold.woff) format("woff")
+}
+
+/* Override DC Default */
+
+a,
+a:hover {
+  border-bottom: 0px solid #fff;
+  text-decoration: none;
+  color: #04273c;
+}
+
+/* General Edits */
+
+p a {
+  color: #04273c;
+  border-bottom: 1px solid #c3e1f9;
+  font-family: "Calibre", arial, sans-serif;
+  text-decoration: none
+}
+
+p a:hover {
+  color: #04273c;
+  text-decoration: none;
+  font-family: "Calibre", arial, sans-serif;
+  border-bottom: 1px solid #04273c;
+}
+
+.row {
+  margin-right: 0px;
+  margin-left: 0px
+}
+
+body {
+  font-family: "Calibre", arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #04273c;
+  font-size: 18px;
+  line-height: 24px
+}
+
+@media (max-width:991.98px) {
+
+  .navbar-expand-lg>.container,
+  .navbar-expand-lg>.container-fluid,
+  .navbar-expand-lg>.container-sm,
+  .navbar-expand-lg>.container-md,
+  .navbar-expand-lg>.container-lg,
+  .navbar-expand-lg>.container-xl {
+    padding-right: 18px;
+    padding-left: 18px
+  }
+}
+
+img {
+  -o-object-fit: cover;
+  object-fit: cover;
+  height: auto;
+  position: relative;
+  -ms-flex-item-align: stretch;
+  align-self: stretch;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.h1,
+.h2,
+.h3,
+.h4,
+.h5,
+.h6 {
+  font-family: "Calibre", arial, sans-serif;
+  font-weight: 700;
+}
+
+.story-block h5 {
+  font-size: 25px
+}
+
+/* Top Nav */
+#main-header {
+  background: #e1f0fc;
+  box-shadow: none;
+}
+
+.container-fluid {
+  max-width: 1385px;
+  margin: 0px auto;
+}
+
+.navbar-brand {
+  padding-top: 0px;
+  padding-bottom: 0px;
+  margin-right: 0px;
+  margin-left: 20px;
+}
+
+.navbar {
+  padding: 18px 0px;
+  height: 74px;
+}
+
+#main-header .container-fluid {
+  padding: 0px;
+}
+
+.navbar-items a {
+  margin-left: 20px;
+}
+
+.navbar-items {
+  margin-right: 20px;
+}
+
+@media (max-width:565px) {
+  .navbar-items {
+    display: none
+  }
+}
+
+/* Footer */
+
+#main-footer {
+  background: #e1f0fc;
+  margin-top: 60px;
+  padding-top: 0px;
+  box-shadow: none;
+}
+
+#main-footer,
+#main-footer h6 {
+  font-size: 1rem;
+}
+
+.footer-content {
+  max-width: 1385px;
+  padding: 25px;
+  margin: 0px auto;
+  display: flex;
+  justify-content: space-between;
+}
+
+.footer-links a {
+  margin-left: 20px;
+}
+
+@media (max-width:790px) {
+  .footer-left {
+    display: none
+  }
+
+  .footer-links a {
+    margin-left: 0px;
+    margin-right: 20px;
+  }
+}
+
+/* Homepage */
+
+#homepage .container {
+  margin-bottom: 0px;
+  max-width: 1385px;
+  padding: 0px 25px
+}
+
+.main-content {
+  margin: 0px auto;
+}
+
+#homepage section p {
+  margin-bottom: 1rem
+}
+
+#homepage-top {
+  margin: 0px;
+  padding-top: 90px;
+  background: #e1f0fc;
+  padding-bottom: 140px;
+  margin-bottom: 80px;
+}
+
+.hero-title {
+  font-size: 70px;
+  line-height: 70px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.hero-secondary {
+  font-size: 21px;
+  line-height: 120%;
+  font-family: "Calibre";
+  text-align: center;
+  max-width: 700px;
+  margin: 0px auto;
+}
+
+section.story {
+  max-width: 1385px;
+  margin: auto;
+  padding: 0px 20px;
+}
+
+.story-title {
+  border-top: 1px solid #c3e1f9;
+  color: #04273c;
+  padding-top: 20px;
+  margin-bottom: 0;
+  font-size: 21px;
+  font-family: "Calibre", arial, sans-serif;
+  font-weight: 700;
+  margin: 40px 0px 25px;
+}
+
+.story-block {
+  display: flex;
+}
+
+.story-image {
+  margin-right: 40px;
+  position: relative;
+}
+
+.story-image,
+.story-text {
+  flex: calc(50% - 20px);
+}
+
+.story-nav div {
+  display: inline;
+}
+
+.story-nav .nav-item img {
+  transition: transform 250ms;
+  cursor: pointer;
+}
+
+.story-nav .nav-item img:hover {
+  transform: translateY(-3px);
+  box-shadow: rgba(0, 0, 0, 0.05) 0px 4px 11px;
+}
+
+.story-image-link {
+  position: absolute;
+  bottom: 0px;
+  right: 38px;
+  padding: 7px 0px 7px 12px;
+  height: 38px;
+  background: #e1f0fc;
+}
+
+.card-arrow {
+  width: 38px;
+  height: 38px;
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+}
+
+.story-nav img {
+  height: 38px;
+  width: 38px
+}
+
+.reversed .story-text {
+  margin-right: 0px;
+  margin-left: 40px
+}
+
+@media (max-width:800px) {
+
+  .story-block,
+  .reversed .story-block {
+    flex-direction: column
+  }
+
+  .story-image,
+  .story-text {
+    width: 100%
+  }
+
+  .story-image {
+    margin-bottom: 24px;
+  }
+
+  .story-text,
+  .reversed .story-text {
+    margin-right: 0px;
+    margin-left: 0px;
+    margin-bottom: 40px
+  }
+
+  .story-block div {
+    flex: initial;
+  }
+}
+
+.reversed .story-block {
+  flex-direction: row-reverse;
+}
