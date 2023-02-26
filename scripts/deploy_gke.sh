@@ -98,8 +98,8 @@ fi
 CLUSTER_NAME=$CLUSTER_PREFIX-$REGION
 
 # Deploy to GKE
-kustomize edit set image gcr.io/$IMAGE_PROJECT/datacommons-website=gcr.io/$IMAGE_PROJECT/datacommons-website:$WEBSITE_HASH
-kustomize edit set image gcr.io/$IMAGE_PROJECT/datacommons-nl=gcr.io/$IMAGE_PROJECT/datacommons-nl:$WEBSITE_HASH
+kustomize edit set image gcr.io/datcom-ci/datacommons-website=gcr.io/$IMAGE_PROJECT/datacommons-website:$WEBSITE_HASH
+kustomize edit set image gcr.io/datcom-ci/datacommons-nl=gcr.io/$IMAGE_PROJECT/datacommons-nl:$WEBSITE_HASH
 kustomize edit set image gcr.io/datcom-ci/datacommons-mixer=gcr.io/datcom-ci/datacommons-mixer:$MIXER_HASH
 kustomize build > kustomize-build.yaml
 cp kustomization.yaml kustomize-deployed.yaml
@@ -119,7 +119,9 @@ gsutil cp gs://datcom-mixer-grpc/mixer-grpc/mixer-grpc.$MIXER_HASH.pb .
 gcloud endpoints services deploy mixer-grpc.$MIXER_HASH.pb endpoints.yaml --project $PROJECT_ID
 
 # Reset changed file
-git checkout HEAD -- kustomization.yaml
+if [[ $PROJECT_ID == "" ]]; then
+  git checkout HEAD -- kustomization.yaml
+fi
 cd $ROOT
 git checkout HEAD -- deploy/git/mixer_hash.txt
 git checkout HEAD -- deploy/git/website_hash.txt
