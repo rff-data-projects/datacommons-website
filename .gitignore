@@ -29,6 +29,7 @@ gke/endpoints.yaml
 gke/mci.yaml
 
 mixer-grpc.*.pb
+deploy/overlays/kustomization.yaml
 deploy/overlays/**/endpoints.yaml
 deploy/overlays/**/kustomize-build.yaml
 deploy/overlays/**/kustomize-deployed.yaml

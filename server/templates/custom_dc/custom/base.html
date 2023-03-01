@@ -42,58 +42,26 @@
   <link rel="stylesheet" href={{url_for('static', filename='css/static.min.css', t=config['VERSION'])}}>
   {% block head %}
   {% endblock %}
-  {% if OVERRIDE_CSS_PATH %}
-  <link href="{{ OVERRIDE_CSS_PATH }}" rel="stylesheet">
-  {% endif %}
+  <link href="/custom_dc/custom/style.css" rel="stylesheet">
 </head>
 
 <body>
   <div id="main">
     <header id="main-header">
-      <nav class="navbar navbar-dark navbar-expand-lg col" id="main-nav">
-        <div class="container-fluid">
-          <div class="navbar-brand">
-            {% if LOGO_PATH %}
-            <div id="main-header-logo">
-                <a href="{{ url_for('static.homepage') }}">
-                  <img src="{{ LOGO_PATH }}" />
-                </a>
+        <nav class="navbar navbar-dark navbar-expand-lg col" id="main-nav">
+            <div class="container-fluid">
+                <div class="navbar-brand">
+                    <a href="/"><img
+                            src="https://media.rff.org/documents/data-commons-logo.svg"
+                            alt="RFF Data Commons logo"></a>
+                </div>
+                <div class="navbar-items">
+                    <a href="{{ url_for('tools.timeline') }}">Timelines</a>
+                    <a href="{{ url_for('tools.scatter') }}">Scatterplots</a>
+                    <a href="{{ url_for('tools.map') }}">Maps</a>
+                </div>
             </div>
-            {% endif %}
-            <a href="{{ url_for('static.homepage') }}">{{ NAME }}</a>
-            {% if subpage_title %}
-            <span>
-              {% if subpage_url %}<a href="{{ subpage_url }}">{% endif %}
-                {{ subpage_title }}
-                {% if subpage_url %}</a>{% endif %}
-            </span>
-            {% endif %}
-            </a>
-          </div>
-          <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#dc-main-nav">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse justify-content-md-end" id="dc-main-nav">
-            <ul class="navbar-nav float-md-right">
-                <li class="nav-item dropdown">
-                    <a href="{{ url_for('tools.timeline') }}" id="nav-timeline" class="nav-link-main "><span>Timeline</span></a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a href="{{ url_for('tools.scatter') }}" id="nav-scatter" class="nav-link-main"><span>Scatter</span> </a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a href="{{ url_for('tools.map') }}" id="nav-map" class="nav-link-main "><span>Map</span></a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a href="{{ url_for('tools.download') }}" id="nav-map" class="nav-link-main "><span>Download</span></a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a href="{{ url_for('tools.stat_var') }}" id="nav-map" class="nav-link-main "><span>Variables</span></a>
-                </li>
-            </ul>
-          </div>
-        </div>
-      </nav>
+        </nav>
     </header>
 
     <main id="{{ main_id }}" class="main-content">
@@ -103,7 +71,16 @@
 
     <footer id="main-footer">
       <div class="container">
-        <h2>Footer goes here</h2>
+        <div class="footer-content">
+            <div class="footer-left">RFF Data Commons is a Google supported project.</div>
+            <div class="footer-links">
+                <a href="/about">About</a>
+                <a href="/faq">FAQs</a>
+                <a href="https://www.rff.org/privacy-policy/">Privacy Policy</a>
+                <a href="/disclaimers">Disclaimers</a>
+                <a href="/feedback">Contact</a>
+            </div>
+        </div>
       </div>
     </footer>
   </div>

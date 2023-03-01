@@ -19,8 +19,450 @@
 {% set main_id = 'homepage' %}
 {% set page_id = 'page-homepage' %}
 
+{% block head %}
+<link href="/custom_dc/custom/slider.css" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-  <section class="container">
-    <h1>Home Page</h1>
+  <section id="homepage-top">
+      <div class="container">
+          <div class="hero-title">Data Commons</div>
+          <div class="hero-secondary">Data Commons is an international project that aggregates data from a
+              wide range of sources—including RFF—into a unified database. RFF’s Data Commons microsite
+              explores datasets relevant to RFF's research priorities. It also provides users access to
+              visualization tools and all datasets stored within Data Commons globally.</div>
+      </div>
   </section>
+
+  <section class="story title">
+      <div class="story-title">Fire and Climate Project</div>
+  </section>
+
+  <section class="story">
+
+      <div id="item-1">
+          <div class="story-block">
+              <div class="story-image">
+                  <img alt="Screenshot from Data Commons" class="card__image" src="/custom_dc/custom/images/project1.1.png">
+                  <a href="#">
+                      <div class="story-image-link">View Scatterplot</div>
+                      <img src="https://media.rff.org/documents/right.svg" class="card-arrow">
+                  </a>
+              </div>
+              <div class="story-text">
+                  <h5>Wildfire activity is increasing across the US</h5>
+                  <p>Wildfire activity has increased in the western US over the past several decades, with
+                      fires becoming larger and more severe. Figure 1 shows total area burned within the
+                      western US each year from 1985-2017, based on data from the US Geological Survey
+                      Monitoring Trends in Burn Severity project. Compared to the decade 1985-1994, in which
+                      XX burned each year on average, XX acres burned on average each year in the decade
+                      2004-2015.</p>
+                  <div class="story-nav">
+                      <div id="nav-1L">
+                          <img src="https://media.rff.org/documents/left.disabled.svg">
+                      </div>
+                      <div id="nav-1R" class="nav-item">
+                          <img src="https://media.rff.org/documents/right.svg">
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      <div id="item-2">
+          <div class="story-block">
+              <div class="story-image">
+                  <img alt="Screenshot from Data Commons" class="card__image" src="/custom_dc/custom/images/project1.2.png">
+                  <a href="#">
+                      <div class="story-image-link">View Scatterplot</div>
+                      <img src="https://media.rff.org/documents/right.svg" class="card-arrow">
+                  </a>
+              </div>
+              <div class="story-text">
+                  <h5>Fire severity is increasing too</h5>
+                  <p>Fires have also increased in severity over this period. Among wildfire scientists, fire
+                      “severity” refers to the extent of impacts a fire has to vegetation and soils; for
+                      example,
+                      a low-severity fire may cause limited mortality to overstory trees, whereas a
+                      high-severity
+                      fire kills a high percentage of overstory trees. Parks and Abatzoglou (2020) assembled a
+                      data set describing the percentage of total forest area burned each year that burned at
+                      high
+                      severity, according to a metric described in the paper. As Figure 2 shows, the average
+                      annual percentage area burned at high severity has increased over time, though this
+                      number
+                      is highly variable, especially during early parts of the sample period when fewer total
+                      acres were burning each year.</p>
+                  <div class="story-nav">
+                      <div id="nav-2L" class="nav-item">
+                          <img src="https://media.rff.org/documents/left.svg">
+                      </div>
+                      <div id="nav-2R" class="nav-item">
+                          <img src="https://media.rff.org/documents/right.svg">
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      <div id="item-3">
+          <div class="story-block">
+              <div class="story-image">
+                  <img alt="Screenshot from Data Commons" class="card__image" src="/custom_dc/custom/images/project1.3.png">
+                  <a href="#">
+                      <div class="story-image-link">View Map</div>
+                      <img src="https://media.rff.org/documents/right.svg" class="card-arrow">
+                  </a>
+              </div>
+              <div class="story-text">
+                  <h5>Wildfire Activity in Western States</h5>
+                  <p>Figure 3 shows increases in wildfire activity in the western US geographically, based
+                      on
+                      data
+                      from the USGS MTBS project. The left panel shows the percentage of each county that
+                      burned
+                      on average during the decade 1985-1994, while the left panel shows average annual
+                      percentage
+                      area burned from 2005-2014. In the early decade, wildfire activity was highest in
+                      central
+                      Idaho and in the Yellowstone region (due in part to the famous Yellowstone fires of
+                      1988).
+                      By the late decade, percentage area burned had increased throughout much of the
+                      study
+                      region, with notable increases in Idaho, the Cascade Range of Oregon and Washington,
+                      northern California, and the southern California coast.
+                  </p>
+                  <div class="story-nav">
+                      <div id="nav-3L" class="nav-item">
+                          <img src="https://media.rff.org/documents/left.svg">
+                      </div>
+                      <div id="nav-3R" class="nav-item">
+                          <img src="https://media.rff.org/documents/right.svg">
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      <div id="item-4">
+          <div class="story-block">
+              <div class="story-image">
+                  <img alt="Screenshot from Data Commons" class="card__image" src="/custom_dc/custom/images/project1.4.png">
+                  <a href="#">
+                      <div class="story-image-link">View Scatterplot</div>
+                      <img src="https://media.rff.org/documents/right.svg" class="card-arrow">
+                  </a>
+              </div>
+              <div class="story-text">
+                  <h5>The role of climate change.</h5>
+                  <p>While several factors have likely contributed to increasing wildfire activity across
+                      the
+                      region (including abundant fuels and an increase in ignition sources), climate
+                      change has
+                      played an important role. Figures 4 and 5 plot data from Parks and Abatzoglou on
+                      total
+                      forest area burned in the western US against annual averages within the region for
+                      two
+                      relevant climate measures: vapor pressure deficit (VPD) and the Palmer Drought
+                      Severity
+                      Index (PDSI). VPD measures the difference between the amount of moisture in the air
+                      and the
+                      amount of moisture the air can hold when saturated; in fire science, VPD is
+                      frequently used
+                      as a measure of dryness because vegetation tends to dry out and become more
+                      flammable when
+                      VPD is high. PDSI is an index running from -10 to 10, which combines temperature and
+                      precipitation data to measure relative dryness; on the PDSI scale lower (more
+                      negative
+                      values) indicate relative dryness, whereas higher values indicate relative wetness.
+                      For both
+                      VPD and PDSI, we calculate annual averages during the period XXXX and weight by
+                      forest area.
+                  </p>
+                  <p>Figure 4 shows that in dry years when VPD was relatively high, total forest area
+                      burned in
+                      the western US has also tended to be higher. Figure 5 shows a similar trend using
+                      PDSI to
+                      measure relative dryness; in years when average PDSI is lower, indicating relative
+                      dryness,
+                      total area burned in the western US is higher. Figures 6 and 7 show the
+                      relationships
+                      between VPD and PDSI and percent of forested area burned at high severity. As for
+                      area
+                      burned, percentage area burned at high severity is higher in years with high average
+                      VPD,
+                      and in years with low PDSI.</p>
+                  <div class="story-nav">
+                      <div id="nav-4L" class="nav-item">
+                          <img src="https://media.rff.org/documents/left.svg">
+                      </div>
+                      <div id="nav-4R">
+                          <img src="https://media.rff.org/documents/right.disabled.svg">
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </section>
+
+
+  <section class="story title">
+      <div class="story-title">Wildfire Smoke Project</div>
+  </section>
+
+  <section class="story">
+
+      <div id="item-10">
+          <div class="story-block">
+              <div class="story-image">
+                  <img alt="Screenshot from Data Commons" class="card__image" src="/custom_dc/custom/images/project2.1.png">
+                  <a href="#">
+                      <div class="story-image-link">View Timeline</div>
+                      <img src="https://media.rff.org/documents/right.svg" class="card-arrow">
+                  </a>
+              </div>
+              <div class="story-text">
+                  <h5>In the United States, exposure to harmful levels of wildfire smoke has increased sharply
+                      in
+                      recent years.</h5>
+                  <p>One of the most damaging pollutants from wildfires is PM2.5, a mixture of chemical
+                      species
+                      characterized by their small size that can lodge deep within our lungs and even enter
+                      our
+                      bloodstreams. Numerous scientific studies have linked PM2.5 exposure to health problems,
+                      including asthma, heart attacks, and premature death in people with heart or lung
+                      disease.
+                  </p>
+                  <p>Researchers from Stanford University used statistical modeling and artificial
+                      intelligence to
+                      estimate concentrations of PM2.5 attributable to wildfire smoke across the US for the
+                      15-year period from 2006 to 2020 (Childs et al, 2022). The plot below shows the maximum
+                      daily concentration of PM2.5 attributable to wildfires by state and year. PM2.5
+                      concentrations in excess of 35 mg/m3 (dotted horizontal line) are considered harmful to
+                      public health and are in violation of the Clean Air Act’s National Ambient Air Quality
+                      Standards (NAAQS). In 2020, wildfires alone caused PM2.5 concentrations to rise above
+                      this
+                      threshold in seven states. </p>
+                  <div class="story-nav">
+                      <div id="nav-10L">
+                          <img src="https://media.rff.org/documents/left.disabled.svg">
+                      </div>
+                      <div id="nav-10R" class="nav-item">
+                          <img src="https://media.rff.org/documents/right.svg">
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      <div id="item-11">
+          <div class="story-block">
+              <div class="story-image">
+                  <img alt="Screenshot from Data Commons" class="card__image" src="/custom_dc/custom/images/project2.2.png">
+                  <a href="#">
+                      <div class="story-image-link">View Map</div>
+                      <img src="https://media.rff.org/documents/right.svg" class="card-arrow">
+                  </a>
+              </div>
+              <div class="story-text">
+                  <h5>Where are Americans are most at risk of wildfire smoke exposure?</h5>
+                  <p>To visualize where Americans are most at risk of wildfire smoke exposure and how this
+                      risk is
+                      evolving over time, we plot the number of days with wildfire PM2.5 concentrations
+                      exceeding
+                      the 35 mg/m3 threshold by county for two five-year periods: 2006-2010 (left) and
+                      2016-2020
+                      (right). In the earlier period, 226 counties, which are home to 48 million Americans,
+                      had at
+                      least one day exceeding the NAAQS standard. Just 10 years later, 518 counties
+                      representing
+                      71 Americans had at least one day exceeding the standard.</p>
+                  <div class="story-nav">
+                      <div id="nav-11L" class="nav-item">
+                          <img src="https://media.rff.org/documents/left.svg">
+                      </div>
+                      <div id="nav-11R" class="nav-item">
+                          <img src="https://media.rff.org/documents/right.svg">
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      <div id="item-12">
+          <div class="story-block">
+              <div class="story-image">
+                  <img alt="Screenshot from Data Commons" class="card__image" src="custom_dc/custom/images/project2.3.png">
+                  <a href="#">
+                      <div class="story-image-link">View Scatterplot</div>
+                      <img src="https://media.rff.org/documents/right.svg" class="card-arrow">
+                  </a>
+              </div>
+              <div class="story-text">
+                  <h5>Understanding nationwide effects</h5>
+                  <p>The plots above illustrate that wildfire smoke poses a significant threat to human health
+                      and
+                      the environment in the American West. But PM2.5 from wildfires can combine with PM2.5
+                      from
+                      other sources to create hazardous conditions in other regions, too. Below, we show the
+                      correlation between total PM2.5 (from all sources) and PM2.5 attributable to wildfire by
+                      census region at the county-by-day level. The top panel shows these relationships in the
+                      year 2015, a year hard-hit by wildfires. In that year, wildfires explain almost 50% of
+                      the
+                      variation (R2 = 0.48) in total PM2.5 concentrations in the Western US.</p>
+                  <p>But wildfires also explain significant variation in total PM2.5 concentrations in other
+                      regions: 31% in the Midwest, 10% in the South, and 14% in the Northeast. Across the US,
+                      wildfire
+                      is a contributing factor on nearly half of all days with harmful PM2.5 levels. But
+                      wildfire need
+                      not drive up PM2.5 concentrations if we can get burning under control. In 2014, a year
+                      with far
+                      less burned area and smoke attributable to wildfires, the wildfires explained only 12%
+                      of the
+                      variation in PM2.5 concentrations in the West and less than 5% in all other regions
+                      (bottom
+                      panel).</p>
+                  <div class="story-nav">
+                      <div id="nav-12L" class="nav-item">
+                          <img src="https://media.rff.org/documents/left.svg">
+                      </div>
+                      <div id="nav-12R">
+                          <img src="https://media.rff.org/documents/right.disabled.svg">
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </section>
+
+  <section class="story title">
+      <div class="story-title">Heatwaves Project</div>
+  </section>
+
+  <section class="story">
+
+      <div id="item-20">
+          <div class="story-block">
+              <div class="story-image">
+                  <img alt="Screenshot from Data Commons" class="card__image" src="custom_dc/custom/images/project3.1.png">
+                  <a href="#">
+                      <div class="story-image-link">View Timeline</div>
+                      <img src="https://media.rff.org/documents/right.svg" class="card-arrow">
+                  </a>
+              </div>
+              <div class="story-text">
+                  <h5>Heatwaves are on the rise.</h5>
+                  <p>In the United States, exposure to extreme heat is on the rise. The average American went
+                      from
+                      experiencing three heat waves per year during the 1980s to five heat waves per year
+                      during
+                      the 2010s. Heatwaves have also become more severe over time. In recent years, the
+                      average
+                      heatwave has lasted about four days. This is one day longer than the average heatwave in
+                      the
+                      1980s. During the same period, the average intensity of heatwaves increased by 0.25
+                      degrees
+                      Celsius.</p>
+                  <p>Heat waves are not just uncomfortable, they can lead to lasting impacts on people and the
+                      economy. Numerous studies have linked extreme heat with illness and death among
+                      vulnerable
+                      populations such as older adults, very young children, and those with chronic health
+                      conditions (CITE). Extreme heat can lead to other negative impacts too – for example,
+                      harming crops, increasing the risk of wildfires, and damaging essential services such as
+                      transportation and energy systems (CITE). Following the Environmental Protection Agency
+                      (EPA), we define a heat wave as a period of at least two consecutive days with daily
+                      minimum
+                      temperatures above the 85th percentile of historical July and August temperatures
+                      (1981-1990) for that location. </p>
+                  <div class="story-nav">
+                      <div id="nav-20L">
+                          <img src="https://media.rff.org/documents/left.disabled.svg">
+                      </div>
+                      <div id="nav-20R" class="nav-item">
+                          <img src="https://media.rff.org/documents/right.svg">
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      <div id="item-21">
+          <div class="story-block">
+              <div class="story-image">
+                  <img alt="Screenshot from Data Commons" class="card__image" src="custom_dc/custom/images/project3.2.png">
+                  <a href="#">
+                      <div class="story-image-link">View Map</div>
+                      <img src="https://media.rff.org/documents/right.svg" class="card-arrow">
+                  </a>
+              </div>
+              <div class="story-text">
+                  <h5>Tracking increases in extreme heat over time</h5>
+                  <p>The top panel of the figure below [change language] show the number of heat waves between
+                      1981 and 1985 (left) and between 2016 and 2020 (right) by US county. Almost all regions
+                      of
+                      the US have experienced a significant increase in extreme heat exposure over the last
+                      several decades, but the trend is most concerning in the Southern US, where some
+                      counties
+                      are now experiencing more than 10 heatwaves per year, on average. The bottom panel of
+                      the
+                      figure shows that the average length of heatwaves has increased most in the Southern and
+                      Western US and now exceeds five days in much of the county.
+
+                  </p>
+                  <div class="story-nav">
+                      <div id="nav-21L" class="nav-item">
+                          <img src="https://media.rff.org/documents/left.svg">
+                      </div>
+                      <div id="nav-21R" class="nav-item">
+                          <img src="https://media.rff.org/documents/right.svg">
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      <div id="item-22">
+          <div class="story-block">
+              <div class="story-image">
+                  <img alt="Screenshot from Data Commons" class="card__image" src="custom_dc/custom/images/project3.3.png">
+                  <a href="#">
+                      <div class="story-image-link">View Scatterplot</div>
+                      <img src="https://media.rff.org/documents/right.svg" class="card-arrow">
+                  </a>
+              </div>
+              <div class="story-text">
+                  <h5>The relationship between heatwaves and community resilience</h5>
+                  <p>One concerning feature of the geographic distribution of extreme heat is that heat waves
+                      tend
+                      to disproportionately affect communities that are less prepared to mitigate their
+                      negative
+                      impacts. Below, we plot the correlation between the number of heatwaves in the most
+                      recent
+                      five-year period (2016 to 2020) and a measure of community-level resilience available
+                      from
+                      FEMA’s National Risk Index. FEMA defines community resilience as “the ability of a
+                      community
+                      to prepare for anticipated natural hazards, adapt to changing conditions, and withstand
+                      and
+                      recover rapidly from disruptions.” There is a strong negative correlation between the
+                      county-level number of heat waves and community resilience score, meaning that
+                      communities
+                      with lower resilience tend to experience more heat waves. The community resilience score
+                      considers six broad categories of resilience: social, economic, community capital,
+                      institutional, infrastructural, and environmental. We could also use the large catalog
+                      of
+                      county-level measures available on Data Commons to further explore which populations are
+                      disproportionally exposed to extreme heat. For example, you can view the association
+                      between
+                      heat wave exposure and median income here. </p>
+                  <div class="story-nav">
+                      <div id="nav-22L" class="nav-item">
+                          <img src="https://media.rff.org/documents/left.svg">
+                      </div>
+                      <div id="nav-22R">
+                          <img src="https://media.rff.org/documents/right.disabled.svg">
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </section>
+{% endblock %}
+
+
+{% block footer %}
+  <script src="/custom_dc/custom/slider.js"></script>
 {% endblock %}

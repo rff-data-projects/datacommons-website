@@ -120,7 +120,9 @@ gsutil cp gs://datcom-mixer-grpc/mixer-grpc/mixer-grpc.$MIXER_HASH.pb .
 gcloud endpoints services deploy mixer-grpc.$MIXER_HASH.pb endpoints.yaml --project $PROJECT_ID
 
 # Reset changed file
-git checkout HEAD -- kustomization.yaml
+if [[ $PROJECT_ID == "" ]]; then
+  git checkout HEAD -- kustomization.yaml
+fi
 cd $ROOT
 git checkout HEAD -- deploy/git/mixer_hash.txt
 git checkout HEAD -- deploy/git/website_hash.txt
