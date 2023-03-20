@@ -1,6 +1,4 @@
-
-#!/bin/bash
-# Copyright 2022 Google LLC
+# Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,11 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-gcloud container clusters create $CLUSTER_NAME \
-  --num-nodes=$NODES \
-  --region=$REGION \
-  --project=$PROJECT_ID \
-  --machine-type=e2-highmem-4 \
-  --enable-ip-alias \
-  --workload-pool=$PROJECT_ID.svc.id.goog \
-  --scopes=https://www.googleapis.com/auth/trace.append
+# Deployment patches that
+# - Set replica
+# - Mount redis config as volume
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: website-app
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: website-app
+  template:
+    spec:
+      volumes:
+        - name: redis-config
+          configMap:
+            name: redis-config
+      containers:
+        - name: website
+          volumeMounts:
+            - name: redis-config
+              mountPath: /datacommons/redis

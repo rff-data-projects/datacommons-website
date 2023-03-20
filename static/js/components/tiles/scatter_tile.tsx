@@ -38,6 +38,7 @@ import { stringifyFn } from "../../utils/axios";
 import { scatterDataToCsv } from "../../utils/chart_csv_utils";
 import { getStringOrNA } from "../../utils/number_utils";
 import { getPlaceScatterData } from "../../utils/scatter_data_utils";
+import { getDateRange } from "../../utils/string_utils";
 import {
   getStatVarName,
   getUnitString,
@@ -71,6 +72,8 @@ interface ScatterChartData {
   sources: Set<string>;
   xUnit: string;
   yUnit: string;
+  xDate: string;
+  yDate: string;
 }
 
 export function ScatterTile(props: ScatterTilePropType): JSX.Element {
@@ -110,41 +113,50 @@ export function ScatterTile(props: ScatterTilePropType): JSX.Element {
     }
   }, [props.svgChartHeight, props.scatterTileSpec, scatterChartData]);
 
-  if (!scatterChartData) {
-    return null;
-  }
   const rs: ReplacementStrings = {
-    place: props.place.name,
-    date: "",
+    placeName: props.place.name,
+    xDate: scatterChartData && scatterChartData.xDate,
+    yDate: scatterChartData && scatterChartData.yDate,
   };
 
   return (
     <ChartTileContainer
       title={props.title}
-      sources={scatterChartData.sources}
+      sources={scatterChartData && scatterChartData.sources}
       replacementStrings={rs}
       className={`${props.className} scatter-chart`}
       allowEmbed={!errorMsg}
-      getDataCsv={() =>
-        scatterDataToCsv(
-          scatterChartData.xStatVar.statVar,
-          scatterChartData.xStatVar.denom,
-          scatterChartData.yStatVar.statVar,
-          scatterChartData.yStatVar.denom,
-          scatterChartData.points
-        )
+      getDataCsv={
+        scatterChartData
+          ? () =>
+              scatterDataToCsv(
+                scatterChartData.xStatVar.statVar,
+                scatterChartData.xStatVar.denom,
+                scatterChartData.yStatVar.statVar,
+                scatterChartData.yStatVar.denom,
+                scatterChartData.points
+              )
+          : null
       }
+      isInitialLoading={_.isNull(scatterChartData)}
     >
       {errorMsg ? (
-        <div className="error-msg">{errorMsg}</div>
+        <div className="error-msg" style={{ minHeight: props.svgChartHeight }}>
+          {errorMsg}
+        </div>
       ) : (
         <>
           <div
             id={props.id}
             className="scatter-svg-container"
             ref={svgContainer}
+            style={{ minHeight: props.svgChartHeight }}
           />
-          <div id="scatter-tooltip" ref={tooltip} />
+          <div
+            id="scatter-tooltip"
+            ref={tooltip}
+            style={{ visibility: "hidden" }}
+          />
         </>
       )}
     </ChartTileContainer>
@@ -231,6 +243,8 @@ function processData(
   }
   const points = {};
   const sources: Set<string> = new Set();
+  const xDates: Set<string> = new Set();
+  const yDates: Set<string> = new Set();
   for (const place in xPlacePointStat) {
     const namedPlace = {
       dcid: place,
@@ -260,6 +274,8 @@ function processData(
       }
     });
     points[place] = placeChartData.point;
+    xDates.add(placeChartData.point.xDate);
+    yDates.add(placeChartData.point.yDate);
   }
   if (_.isEmpty(points)) {
     setErrorMsg("Sorry, we don't have data for those variables");
@@ -287,6 +303,8 @@ function processData(
     sources,
     xUnit,
     yUnit,
+    xDate: getDateRange(Array.from(xDates)),
+    yDate: getDateRange(Array.from(yDates)),
   });
 }
 

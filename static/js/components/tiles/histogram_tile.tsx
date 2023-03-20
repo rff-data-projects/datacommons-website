@@ -19,7 +19,7 @@
  */
 
 import _ from "lodash";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 
 import { DataPoint } from "../../chart/base";
 import { drawHistogram } from "../../chart/draw";
@@ -40,6 +40,7 @@ interface HistogramTilePropType {
   eventTypeSpec: EventTypeSpec;
   id: string;
   place: NamedTypedPlace;
+  property: string;
   selectedDate: string;
   title: string;
 }
@@ -144,11 +145,14 @@ function getMonthsArray(dateSetting: string): string[] {
  * @param disasterEventPoints event data points to bin
  * @param dateSetting user selected date setting
  * @param format temporal granularity to use. One of "YYYY-MM" or "YYYY-MM-DD"
+ * @param property the property to bin values for. Defaults to aggregating
+ *                 counts if property is undefined.
  */
 function binData(
   disasterEventPoints: DisasterEventPoint[],
   dateSetting: string,
-  format: string
+  format: string,
+  property?: string
 ): DataPoint[] {
   if (_.isEmpty(disasterEventPoints)) {
     return [];
@@ -170,10 +174,17 @@ function binData(
     // Get start time in the temporal granularity desired
     const eventDate = event.startDate.slice(0, format.length);
 
-    // Increment count in corresponding bin if event has at least
+    // Get value of property to aggregate
+    let eventValue = 1;
+    if (property) {
+      // default to 0 if property can't be found in display props
+      eventValue = event.displayProps[property] || 0;
+    }
+
+    // Increment value in corresponding bin if event has at least
     // that temporal granularity
     if (bins.has(eventDate) && eventDate.length == format.length) {
-      bins.set(eventDate, bins.get(eventDate) + 1);
+      bins.set(eventDate, bins.get(eventDate) + eventValue);
     } else {
       console.log(`Skipped event ${event} that started on ${eventDate}`);
     }
@@ -183,8 +194,9 @@ function binData(
   if (Array.from(bins.values()).every((value) => value == 0)) {
     console.log(
       "[Histogram] Skipped plotting all events. Either the events were not " +
-        "within the provided time frame or the events did not have at least " +
-        `${format} temporal resolution.`
+        "within the provided time frame, the events did not have at least " +
+        `${format} temporal resolution, or the event_type_spec is missing a ` +
+        `display_prop entry for ${property}.`
     );
     return [];
   }
@@ -210,18 +222,15 @@ function shouldShowHistogram(histogramData: DataPoint[]): boolean {
  */
 export function HistogramTile(props: HistogramTilePropType): JSX.Element {
   const svgContainer = useRef(null);
-  const [histogramData, setHistogramData] = useState<DataPoint[]>([]);
-
-  // format event data if data is available
-  useEffect(() => {
-    if (props.disasterEventData && props.disasterEventData.eventPoints) {
-      processData(
-        props.disasterEventData.eventPoints,
-        props.selectedDate,
-        setHistogramData
-      );
-    }
-  }, [props]);
+  const isInitialLoading = _.isNull(props.disasterEventData);
+  let histogramData = [];
+  if (!isInitialLoading && !_.isEmpty(props.disasterEventData)) {
+    histogramData = getHistogramData(
+      props.disasterEventData.eventPoints,
+      props.selectedDate,
+      props.property
+    );
+  }
 
   useEffect(() => {
     if (shouldShowHistogram(histogramData)) {
@@ -231,8 +240,7 @@ export function HistogramTile(props: HistogramTilePropType): JSX.Element {
 
   // for title formatting
   const rs: ReplacementStrings = {
-    place: props.place.name,
-    date: "",
+    placeName: props.place.name,
   };
 
   // organize provenance info to pass to ChartTileContainer
@@ -245,46 +253,61 @@ export function HistogramTile(props: HistogramTilePropType): JSX.Element {
     );
   }
 
+  if (!isInitialLoading && !shouldShowHistogram(histogramData)) {
+    return <></>;
+  }
+
   // TODO (juliawu): add "sorry, we don't have data" message if data is
   //                 present at 6 months but not 30 days
   return (
-    <>
-      {shouldShowHistogram(histogramData) && (
-        <ChartTileContainer
-          title={props.title}
-          sources={sources}
-          replacementStrings={rs}
-          className={"histogram-chart"}
-          allowEmbed={false}
-        >
-          <div id={props.id} className="svg-container" ref={svgContainer}></div>
-        </ChartTileContainer>
-      )}
-    </>
+    <ChartTileContainer
+      title={props.title}
+      sources={sources}
+      replacementStrings={rs}
+      className={"histogram-chart"}
+      allowEmbed={false}
+      isInitialLoading={isInitialLoading}
+    >
+      <div id={props.id} className="svg-container" ref={svgContainer}></div>
+    </ChartTileContainer>
   );
 
   /**
    * Bin dates and values to plot based on given disasterEventPoints.
+   * @param disasterEventPoints event data to process
+   * @param dateSetting the date option selected by the user
+   * @param property the property to bin values for. Defaults to aggregating
+   *                 counts if property is undefined.
    */
-  function processData(
+  function getHistogramData(
     disasterEventPoints: DisasterEventPoint[],
     dateSetting: string,
-    setHistogramData: (data: DataPoint[]) => void
-  ): void {
+    property?: string
+  ): DataPoint[] {
     let histogramData: DataPoint[] = [];
     // Try binning by day if dateSetting is "last 30 days" or a month
     if (
       dateSetting == DATE_OPTION_30D_KEY ||
       dateSetting.length == MONTH_FORMAT.length
     ) {
-      histogramData = binData(disasterEventPoints, dateSetting, DAY_FORMAT);
+      histogramData = binData(
+        disasterEventPoints,
+        dateSetting,
+        DAY_FORMAT,
+        property
+      );
     }
     // Bin by month for all other cases
     // Also fallback to monthly binning if daily binning returns no data
     if (_.isEmpty(histogramData)) {
-      histogramData = binData(disasterEventPoints, dateSetting, MONTH_FORMAT);
+      histogramData = binData(
+        disasterEventPoints,
+        dateSetting,
+        MONTH_FORMAT,
+        property
+      );
     }
-    setHistogramData(histogramData);
+    return histogramData;
   }
 
   /**
@@ -294,6 +317,15 @@ export function HistogramTile(props: HistogramTilePropType): JSX.Element {
     props: HistogramTilePropType,
     histogramData: DataPoint[]
   ): void {
+    // Get unit to display on y-axis, if available
+    let unit = undefined;
+    if (props.property) {
+      const eventDisplayProp = props.eventTypeSpec.displayProp.find(
+        (elem) => elem.prop == props.property
+      );
+      unit = eventDisplayProp.unit;
+    }
+
     const elem = document.getElementById(props.id);
     if (elem) {
       elem.innerHTML = "";
@@ -303,7 +335,7 @@ export function HistogramTile(props: HistogramTilePropType): JSX.Element {
         elem.clientHeight,
         histogramData,
         formatNumber,
-        undefined,
+        unit,
         props.eventTypeSpec.color
       );
     }

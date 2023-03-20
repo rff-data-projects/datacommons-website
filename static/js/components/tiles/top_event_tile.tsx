@@ -22,6 +22,7 @@ import axios from "axios";
 import _ from "lodash";
 import React, { useEffect, useRef, useState } from "react";
 
+import { INITAL_LOADING_CLASS } from "../../constants/tile_constants";
 import { ChartEmbed } from "../../place/chart_embed";
 import { NamedPlace, NamedTypedPlace } from "../../shared/types";
 import {
@@ -37,6 +38,7 @@ import { stringifyFn } from "../../utils/axios";
 import { rankingPointsToCsv } from "../../utils/chart_csv_utils";
 import { getPlaceNames } from "../../utils/place_utils";
 import { formatNumber } from "../../utils/string_utils";
+import { ChartFooter } from "./chart_footer";
 
 const RANKING_COUNT = 10;
 const MIN_PERCENT_PLACE_NAMES = 0.4;
@@ -61,12 +63,14 @@ export function TopEventTile(props: TopEventTilePropType): JSX.Element {
   const severityFilter = props.eventTypeSpec.defaultSeverityFilter;
   const severityProp = severityFilter.prop;
   const severityDisplay = severityFilter.displayName || severityFilter.prop;
-  const topEvents = rankEventData(
-    props.disasterEventData,
-    props.topEventMetadata.reverseSort
-  );
+  const topEvents = props.disasterEventData
+    ? rankEventData(props.disasterEventData, props.topEventMetadata.reverseSort)
+    : null;
 
   useEffect(() => {
+    if (_.isNull(topEvents)) {
+      return;
+    }
     updateEventPlaces(topEvents);
   }, [props]);
 
@@ -74,6 +78,9 @@ export function TopEventTile(props: TopEventTilePropType): JSX.Element {
   const displayPropUnits = {};
   if (props.topEventMetadata.displayProp) {
     for (const dp of props.topEventMetadata.displayProp) {
+      if (_.isEmpty(props.eventTypeSpec.displayProp)) {
+        continue;
+      }
       for (const edp of props.eventTypeSpec.displayProp) {
         if (edp.prop == dp) {
           displayPropNames[dp] = edp.displayName;
@@ -84,26 +91,40 @@ export function TopEventTile(props: TopEventTilePropType): JSX.Element {
     }
   }
 
-  if (topEvents === undefined || eventPlaces == null) {
-    return <></>;
+  const isInitialLoading = _.isNull(topEvents) || _.isNull(eventPlaces);
+  const showChart = !isInitialLoading && !_.isEmpty(topEvents);
+  let showPlaceColumn = false;
+  let showNameColumn = false;
+  const sources = new Set<string>();
+  if (!isInitialLoading) {
+    showPlaceColumn =
+      Object.keys(eventPlaces).length / topEvents.length >
+      MIN_PERCENT_PLACE_NAMES;
+    showNameColumn =
+      topEvents.filter((event) => !isUnnamedEvent(event.placeName)).length > 0;
+    Object.values(props.disasterEventData.provenanceInfo).forEach(
+      (provInfo) => {
+        sources.add(provInfo.provenanceUrl);
+      }
+    );
   }
-  const showPlaceColumn =
-    Object.keys(eventPlaces).length / topEvents.length >
-    MIN_PERCENT_PLACE_NAMES;
-  const showNameColumn =
-    topEvents.filter((event) => !isUnnamedEvent(event.placeName)).length > 0;
 
   return (
     <div
       className={`chart-container ranking-tile ${props.className}`}
       ref={chartContainer}
     >
-      {_.isEmpty(topEvents) ? (
-        <p>There were no severe events in that time period.</p>
-      ) : (
-        <div className="ranking-unit-container">
-          <div className="ranking-list">
-            <h4>{props.title}</h4>
+      <div
+        className={`ranking-unit-container ${
+          isInitialLoading ? INITAL_LOADING_CLASS : ""
+        }`}
+      >
+        <div className={`ranking-list top-event-content `}>
+          {<h4>{!isInitialLoading && props.title}</h4>}
+          {!showChart && !isInitialLoading && (
+            <p>There were no severe events in that time period.</p>
+          )}
+          {showChart && (
             <table>
               <thead>
                 <tr>
@@ -175,19 +196,13 @@ export function TopEventTile(props: TopEventTilePropType): JSX.Element {
                 })}
               </tbody>
             </table>
-            <footer>
-              <a
-                href="#"
-                onClick={(event) => {
-                  handleEmbed(event, topEvents);
-                }}
-              >
-                Export
-              </a>
-            </footer>
-          </div>
+          )}
+          <ChartFooter
+            sources={sources}
+            handleEmbed={showChart ? () => handleEmbed(topEvents) : null}
+          />
         </div>
-      )}
+      </div>
       <ChartEmbed ref={embedModalElement} />
     </div>
   );
@@ -264,9 +279,9 @@ export function TopEventTile(props: TopEventTilePropType): JSX.Element {
       .flatMap((event) => event.affectedPlaces)
       .forEach((place) => allAffectedPlaces.add(place));
     axios
-      .get<Record<string, string[]>>("/api/node/propvals", {
-        params: { dcids: Array.from(allAffectedPlaces), prop: "typeOf" },
-        paramsSerializer: stringifyFn,
+      .post<Record<string, string[]>>("/api/node/propvals", {
+        dcids: Array.from(allAffectedPlaces),
+        prop: "typeOf",
       })
       .then((resp) => {
         // Map of event id to dcid of a place (of place type
@@ -331,11 +346,7 @@ export function TopEventTile(props: TopEventTilePropType): JSX.Element {
     return filteredPoints.slice(0, RANKING_COUNT);
   }
 
-  function handleEmbed(
-    e: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
-    topEvents: DisasterEventPoint[]
-  ): void {
-    e.preventDefault();
+  function handleEmbed(topEvents: DisasterEventPoint[]): void {
     const rankingPoints = topEvents.map((point) => {
       return {
         placeDcid: point.placeDcid,
@@ -384,7 +395,7 @@ export function TopEventTile(props: TopEventTilePropType): JSX.Element {
   }
 
   function addEventLink(eventId: string, displayStr: string): JSX.Element {
-    return <a href={`/browser/${eventId}`}>{displayStr}</a>;
+    return <a href={`/event/${eventId}`}>{displayStr}</a>;
   }
 
   function getDisplayDate(event: DisasterEventPoint): string {

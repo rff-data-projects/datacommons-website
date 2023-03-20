@@ -85,21 +85,27 @@ def register_routes_custom_dc(app):
   pass
 
 
-def register_routes_stanford_dc(app, is_local):
+def register_routes_disasters(app):
   # Install blueprints specific to Stanford DC
   from server.routes import disasters
   from server.routes import event
+  from server.routes import sustainability
   from server.routes.api import disaster_api
   app.register_blueprint(disasters.bp)
   app.register_blueprint(disaster_api.bp)
   app.register_blueprint(event.bp)
+  app.register_blueprint(sustainability.bp)
 
   if app.config['TEST']:
     return
 
   # load disaster dashboard configs
-  disaster_dashboard_configs = libutil.get_disaster_dashboard_configs()
-  app.config['DISASTER_DASHBOARD_CONFIGS'] = disaster_dashboard_configs
+  app.config[
+      'DISASTER_DASHBOARD_CONFIG'] = libutil.get_disaster_dashboard_config()
+  app.config['DISASTER_EVENT_CONFIG'] = libutil.get_disaster_event_config()
+  app.config[
+      'DISASTER_SUSTAINABILITY_CONFIG'] = libutil.get_disaster_sustainability_config(
+      )
 
   if app.config['INTEGRATION']:
     return
@@ -191,10 +197,6 @@ def create_app():
   cfg = libconfig.get_config()
   app.config.from_object(cfg)
 
-  # USE_LOCAL_MIXER
-  if cfg.LOCAL and os.environ.get('USE_LOCAL_MIXER') == 'true':
-    app.config['API_ROOT'] = 'http://127.0.0.1:8081'
-
   # Init extentions
   from server.cache import cache
 
@@ -215,12 +217,12 @@ def create_app():
     register_routes_custom_dc(app)
   if (cfg.ENV == 'stanford' or os.environ.get('ENABLE_MODEL') == 'true' or
       cfg.LOCAL and not cfg.LITE):
-    register_routes_stanford_dc(app, cfg.LOCAL)
+    register_routes_disasters(app)
 
   if cfg.TEST or cfg.INTEGRATION:
     # disaster dashboard tests require stanford's routes to be registered.
     register_routes_base_dc(app)
-    register_routes_stanford_dc(app, cfg.LOCAL)
+    register_routes_disasters(app)
   else:
     register_routes_base_dc(app)
 
@@ -246,6 +248,7 @@ def create_app():
     if 'relatedChart' in chart and 'denominator' in chart['relatedChart']:
       ranked_statvars.add(chart['relatedChart']['denominator'])
   app.config['RANKED_STAT_VARS'] = ranked_statvars
+  app.config['CACHED_GEOJSONS'] = libutil.get_cached_geojsons()
 
   if not cfg.TEST and not cfg.LITE:
     secret_client = secretmanager.SecretManagerServiceClient()
@@ -274,12 +277,13 @@ def create_app():
             'openid',
         ])
 
-  if app.config['LOCAL']:
+  if cfg.LOCAL:
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-  if app.config['API_PROJECT']:
+  if cfg.NEED_API_KEY:
+    # Only need to fetch the API key for local development.
     secret_client = secretmanager.SecretManagerServiceClient()
-    secret_name = secret_client.secret_version_path(cfg.API_PROJECT,
+    secret_name = secret_client.secret_version_path(cfg.SECRET_PROJECT,
                                                     'mixer-api-key', 'latest')
     secret_response = secret_client.access_secret_version(name=secret_name)
     app.config['DC_API_KEY'] = secret_response.payload.data.decode('UTF-8')
@@ -301,6 +305,8 @@ def create_app():
 
     nl_model = nl.Model()
     app.config['NL_MODEL'] = nl_model
+    # This also requires disaster and event routes.
+    app.config['NL_DISASTER_CONFIG'] = libutil.get_nl_disaster_config()
 
   if not cfg.TEST:
     urls = get_health_check_urls()

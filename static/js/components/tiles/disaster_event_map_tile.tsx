@@ -19,7 +19,6 @@
  */
 
 import * as d3 from "d3";
-import { geoJson } from "leaflet";
 import _ from "lodash";
 import React, { useContext, useEffect, useRef, useState } from "react";
 
@@ -37,13 +36,11 @@ import {
 } from "../../chart/types";
 import {
   EARTH_NAMED_TYPED_PLACE,
-  EUROPE_NAMED_TYPED_PLACE,
   USA_PLACE_DCID,
 } from "../../shared/constants";
 import { NamedPlace, NamedTypedPlace } from "../../shared/types";
 import { isChildPlaceOf } from "../../tools/shared_util";
 import {
-  DisasterEventMapPlaceInfo,
   DisasterEventPoint,
   DisasterEventPointData,
 } from "../../types/disaster_event_map_types";
@@ -56,10 +53,6 @@ import {
   onPointClicked,
 } from "../../utils/disaster_event_map_utils";
 import { fetchNodeGeoJson } from "../../utils/geojson_utils";
-import {
-  getEnclosedPlacesPromise,
-  getParentPlacesPromise,
-} from "../../utils/place_utils";
 import { ReplacementStrings } from "../../utils/tile_utils";
 import { DataContext } from "../subject_page/data_context";
 import { ChartTileContainer } from "./chart_tile";
@@ -96,34 +89,43 @@ export function DisasterEventMapTile(
 ): JSX.Element {
   const svgContainerRef = useRef(null);
   const infoCardRef = useRef(null);
-  const europeanPlaces = useRef([]);
-  const [placeInfo, setPlaceInfo] = useState<DisasterEventMapPlaceInfo>(null);
-  const { geoJsonData } = useContext(DataContext);
+  const { geoJsonData, parentPlaces } = useContext(DataContext);
   const [polygonGeoJson, setPolygonGeoJson] = useState(null);
   const [pathGeoJson, setPathGeoJson] = useState(null);
+  const [selectedEventTypes, setSelectedEventTypes] = useState(
+    new Set(Object.keys(props.eventTypeSpec))
+  );
+  const [svgHeight, setSvgHeight] = useState(null);
   let baseMapGeoJson = null;
   if (geoJsonData) {
     baseMapGeoJson = shouldUsePlaceGeoJson()
       ? geoJsonData.placeGeoJson
       : geoJsonData.childrenGeoJson;
   }
+  const isInitialLoading =
+    _.isNull(parentPlaces) ||
+    _.isNull(baseMapGeoJson) ||
+    _.isNull(polygonGeoJson) ||
+    _.isNull(pathGeoJson) ||
+    _.isNull(props.disasterEventData);
   const shouldShowMap =
-    placeInfo &&
-    !_.isEmpty(baseMapGeoJson) &&
-    !_.isEmpty(baseMapGeoJson.features) &&
-    !_.isNull(polygonGeoJson) &&
-    !_.isNull(pathGeoJson);
+    !isInitialLoading && !_.isEmpty(baseMapGeoJson.features);
 
   useEffect(() => {
+    if (_.isNull(props.disasterEventData)) {
+      return;
+    }
     // re-fetch event geojson data for paths and polygons when disaster event
     // data changes or tile spec changes
     fetchEventGeoJsonData(
       props.tileSpec.pathEventTypeKey,
+      "pathGeoJson",
       "pathGeoJsonProp",
       setPathGeoJson
     );
     fetchEventGeoJsonData(
       props.tileSpec.polygonEventTypeKey,
+      "polygonGeoJson",
       "polygonGeoJsonProp",
       setPolygonGeoJson
     );
@@ -135,24 +137,9 @@ export function DisasterEventMapTile(
   ]);
 
   useEffect(() => {
-    // On initial loading of the component, get list of all European countries
-    // and save it in a ref to be used for map drawing.
-    getEnclosedPlacesPromise(EUROPE_NAMED_TYPED_PLACE.dcid, "Country").then(
-      (resp: Array<NamedPlace>) => {
-        europeanPlaces.current = resp;
-      }
-    );
-  }, []);
-
-  useEffect(() => {
-    // When props change, update place info
-    updatePlaceInfo(props.place, props.enclosedPlaceType);
-  }, [props]);
-
-  useEffect(() => {
     if (shouldShowMap) {
       draw(
-        placeInfo,
+        parentPlaces,
         baseMapGeoJson,
         props.disasterEventData,
         polygonGeoJson,
@@ -160,28 +147,31 @@ export function DisasterEventMapTile(
       );
     }
   }, [
-    placeInfo,
+    parentPlaces,
     baseMapGeoJson,
     props.disasterEventData,
     polygonGeoJson,
     pathGeoJson,
+    selectedEventTypes,
   ]);
 
-  if (geoJsonData == null || !placeInfo) {
-    return null;
-  }
+  useEffect(() => {
+    // Set svg height when props change
+    setSvgHeight(getSvgHeight());
+  }, [props]);
 
   const rs: ReplacementStrings = {
-    place: props.place.name,
-    date: "",
+    placeName: props.place.name,
   };
 
   const sources = new Set<string>();
-  Object.values(props.disasterEventData).forEach((eventData) => {
-    Object.values(eventData.provenanceInfo).forEach((provInfo) => {
-      sources.add(provInfo.provenanceUrl);
+  if (shouldShowMap) {
+    Object.values(props.disasterEventData).forEach((eventData) => {
+      Object.values(eventData.provenanceInfo).forEach((provInfo) => {
+        sources.add(provInfo.provenanceUrl);
+      });
     });
-  });
+  }
 
   return (
     <ChartTileContainer
@@ -190,87 +180,105 @@ export function DisasterEventMapTile(
       replacementStrings={rs}
       className={`${CSS_SELECTOR_PREFIX}-tile`}
       allowEmbed={false}
+      isInitialLoading={isInitialLoading}
     >
       <div className={`${CSS_SELECTOR_PREFIX}-container`}>
-        {!shouldShowMap ? (
-          <div className={`${CSS_SELECTOR_PREFIX}-error-message`}>
-            Sorry, we do not have maps for this place.
-          </div>
-        ) : (
-          <>
-            <div className={`${CSS_SELECTOR_PREFIX}-chart-section`}>
-              <div className={`${CSS_SELECTOR_PREFIX}-zoom-button-section`}>
-                <div
-                  id={ZOOM_IN_BUTTON_ID}
-                  className={`${CSS_SELECTOR_PREFIX}-zoom-button`}
-                >
-                  <i className="material-icons">add</i>
-                </div>
-                <div
-                  id={ZOOM_OUT_BUTTON_ID}
-                  className={`${CSS_SELECTOR_PREFIX}-zoom-button`}
-                >
-                  <i className="material-icons">remove</i>
-                </div>
+        <div className={`${CSS_SELECTOR_PREFIX}-chart-section`}>
+          {shouldShowMap && (
+            <div className={`${CSS_SELECTOR_PREFIX}-zoom-button-section`}>
+              <div
+                id={ZOOM_IN_BUTTON_ID}
+                className={`${CSS_SELECTOR_PREFIX}-zoom-button`}
+              >
+                <i className="material-icons">add</i>
               </div>
               <div
-                id={props.id}
-                className="svg-container"
-                ref={svgContainerRef}
-              ></div>
-              <div className={`${CSS_SELECTOR_PREFIX}-controls`}>
-                <div className={`${CSS_SELECTOR_PREFIX}-legend`}>
-                  {Object.values(props.eventTypeSpec).map((spec) => {
-                    return (
-                      <div
-                        className={`${CSS_SELECTOR_PREFIX}-legend-entry`}
-                        key={`${props.id}-legend-${spec.id}`}
-                      >
-                        <div
-                          className={`${CSS_SELECTOR_PREFIX}-legend-color`}
-                          style={{
-                            backgroundColor: spec.color,
-                          }}
-                        ></div>
-                        <span>{spec.name}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                id={ZOOM_OUT_BUTTON_ID}
+                className={`${CSS_SELECTOR_PREFIX}-zoom-button`}
+              >
+                <i className="material-icons">remove</i>
               </div>
-              <div id={`${CSS_SELECTOR_PREFIX}-info-card`} ref={infoCardRef} />
             </div>
-          </>
-        )}
+          )}
+          <div
+            id={props.id}
+            className={`svg-container`}
+            ref={svgContainerRef}
+            style={{ minHeight: svgHeight }}
+          >
+            {!shouldShowMap && !isInitialLoading && (
+              <div className={`${CSS_SELECTOR_PREFIX}-error-message`}>
+                Sorry, we do not have maps for this place.
+              </div>
+            )}
+          </div>
+          <div className={`${CSS_SELECTOR_PREFIX}-controls`}>
+            <div className={`${CSS_SELECTOR_PREFIX}-legend`}>
+              {shouldShowMap &&
+                Object.values(props.eventTypeSpec).map((spec) => {
+                  return (
+                    <div
+                      className={`${CSS_SELECTOR_PREFIX}-legend-entry`}
+                      key={`${props.id}-legend-${spec.id}`}
+                      onClick={() => toggleEventTypeSelection(spec.id)}
+                    >
+                      <div
+                        className={`${CSS_SELECTOR_PREFIX}-legend-color`}
+                        style={{
+                          backgroundColor: selectedEventTypes.has(spec.id)
+                            ? spec.color
+                            : "transparent",
+                          borderColor: spec.color,
+                        }}
+                      ></div>
+                      <span>{spec.name}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+          <div id={`${CSS_SELECTOR_PREFIX}-info-card`} ref={infoCardRef} />
+        </div>
       </div>
     </ChartTileContainer>
   );
 
   /**
-   * Updates place info given a selectedPlace and enclosedPlaceType
+   * Calculate what the height of the svg section should be.
    */
-  function updatePlaceInfo(
-    selectedPlace: NamedTypedPlace,
-    enclosedPlaceType: string
-  ): void {
-    if (placeInfo && selectedPlace.dcid === placeInfo.selectedPlace.dcid) {
-      return;
+  function getSvgHeight(): number {
+    if (svgContainerRef.current) {
+      const width = svgContainerRef.current.offsetWidth;
+      const height = Math.max(
+        svgContainerRef.current.offsetHeight,
+        Math.ceil((width * 2) / 5)
+      );
+      return height;
     }
-    getParentPlacesPromise(selectedPlace.dcid).then((parentPlaces) => {
-      setPlaceInfo({
-        selectedPlace,
-        enclosedPlaceType,
-        parentPlaces,
-      });
-    });
+    return svgHeight;
   }
 
   /**
-   * Fetches and sets the geojson for a list of event types and the key to use
-   * for getting the geojson prop.
+   * Updates selectedEventTypes state for when an eventType is toggled
+   */
+  function toggleEventTypeSelection(eventType: string): void {
+    const newSelectedEventTypes = _.cloneDeep(selectedEventTypes);
+    if (selectedEventTypes.has(eventType)) {
+      newSelectedEventTypes.delete(eventType);
+    } else {
+      newSelectedEventTypes.add(eventType);
+    }
+    setSelectedEventTypes(newSelectedEventTypes);
+  }
+
+  /**
+   * Fetches and sets the geojson for a list of event types when given the key
+   * to get the geojson prop from the event type spec and the key to get the
+   * geojson feature from the event point
    */
   function fetchEventGeoJsonData(
     eventTypeKeys: string[],
+    eventPointGeoJsonKey: string,
     geoJsonPropKey: string,
     setEventTypeGeoJson: (eventTypeGeoJson: Record<string, GeoJsonData>) => void
   ): void {
@@ -278,20 +286,37 @@ export function DisasterEventMapTile(
       setEventTypeGeoJson({});
       return;
     }
-    const geoJsonPromises = eventTypeKeys.map((eventType) => {
-      if (
-        props.disasterEventData[eventType] &&
-        geoJsonPropKey in props.eventTypeSpec[eventType]
-      ) {
-        const eventDcids = props.disasterEventData[eventType].eventPoints.map(
-          (point) => point.placeDcid
-        );
-        return fetchNodeGeoJson(
-          eventDcids,
-          props.eventTypeSpec[eventType][geoJsonPropKey]
-        );
+    const geoJsonPromises = [];
+    // map of event type to list of geojson features read from event points
+    const eventTypeFeatures = {};
+    for (const eventType of eventTypeKeys) {
+      if (!props.eventTypeSpec[eventType][geoJsonPropKey]) {
+        geoJsonPromises.push(Promise.resolve(null));
+        continue;
       }
-    });
+      eventTypeFeatures[eventType] = [];
+      // list of dcids to fetch geojson for
+      const eventDcids = [];
+      for (const eventPoint of props.disasterEventData[eventType].eventPoints) {
+        if (eventPoint[eventPointGeoJsonKey]) {
+          eventTypeFeatures[eventType].push(eventPoint[eventPointGeoJsonKey]);
+        } else {
+          eventDcids.push(eventPoint.placeDcid);
+        }
+      }
+      // if at least one event type feature was read from an event point, then
+      // all event points should contain geojson feature information IF its
+      // available for the event point.
+      const eventDcidsToFetch = _.isEmpty(eventTypeFeatures[eventType])
+        ? eventDcids
+        : [];
+      geoJsonPromises.push(
+        fetchNodeGeoJson(
+          eventDcidsToFetch,
+          props.eventTypeSpec[eventType][geoJsonPropKey]
+        )
+      );
+    }
     Promise.all(geoJsonPromises)
       .then((geoJsons) => {
         const eventTypeGeoJsonData = {};
@@ -299,7 +324,9 @@ export function DisasterEventMapTile(
           if (!geoJsons[i]) {
             return;
           }
-          eventTypeGeoJsonData[type] = geoJsons[i];
+          const geoJsonData = geoJsons[i];
+          geoJsonData.features.push(...eventTypeFeatures[type]);
+          eventTypeGeoJsonData[type] = geoJsonData;
         });
         setEventTypeGeoJson(eventTypeGeoJsonData);
       })
@@ -312,34 +339,31 @@ export function DisasterEventMapTile(
    * Draws the disaster event map
    */
   function draw(
-    placeInfo: DisasterEventMapPlaceInfo,
+    parentPlaces: NamedPlace[],
     geoJsonData: GeoJsonData,
     disasterEventData: Record<string, DisasterEventPointData>,
     polygonGeoJson: GeoJsonData,
     pathGeoJson: GeoJsonData
   ): void {
     const width = svgContainerRef.current.offsetWidth;
-    const height = Math.max(
-      svgContainerRef.current.offsetHeight,
-      (width * 2) / 5
-    );
+    const height = svgHeight;
     const zoomParams = {
       zoomInButtonId: ZOOM_IN_BUTTON_ID,
       zoomOutButtonId: ZOOM_OUT_BUTTON_ID,
     };
     const isUsaPlace = isChildPlaceOf(
-      placeInfo.selectedPlace.dcid,
+      props.place.dcid,
       USA_PLACE_DCID,
-      placeInfo.parentPlaces
+      parentPlaces
     );
     const isPlaceBaseMap = shouldUsePlaceGeoJson();
     const projection = getProjection(
       isUsaPlace,
-      placeInfo.selectedPlace.dcid,
+      props.place.dcid,
       width,
       height,
       geoJsonData,
-      placeInfo.selectedPlace.dcid
+      props.place.dcid
     );
     drawD3Map(
       svgContainerRef.current,
@@ -353,13 +377,13 @@ export function DisasterEventMapTile(
       (place: NamedPlace) => place.name || place.dcid /* getTooltipHtml */,
       (placeDcid: string) =>
         placeDcid !==
-        placeInfo.selectedPlace
+        props.place
           .dcid /* canClickRegion: don't allow clicking region that will redirect to current page */,
       true /* shouldShowBoundaryLines */,
       projection,
       isPlaceBaseMap
         ? ""
-        : placeInfo.selectedPlace
+        : props.place
             .dcid /** zoomDcid: don't want special zoom handling of the selected place if usiing place base map */,
       zoomParams
     );
@@ -371,7 +395,10 @@ export function DisasterEventMapTile(
       });
     });
     for (const eventType of props.tileSpec.polygonEventTypeKey || []) {
-      if (!(eventType in polygonGeoJson)) {
+      if (
+        !(eventType in polygonGeoJson) ||
+        !selectedEventTypes.has(eventType)
+      ) {
         continue;
       }
       addPolygonLayer(
@@ -389,7 +416,7 @@ export function DisasterEventMapTile(
       );
     }
     for (const eventType of props.tileSpec.pathEventTypeKey || []) {
-      if (!(eventType in pathGeoJson)) {
+      if (!(eventType in pathGeoJson) || !selectedEventTypes.has(eventType)) {
         continue;
       }
       addPathLayer(
@@ -407,6 +434,9 @@ export function DisasterEventMapTile(
       );
     }
     for (const eventType of props.tileSpec.pointEventTypeKey || []) {
+      if (!selectedEventTypes.has(eventType)) {
+        continue;
+      }
       const mapPointsData = getMapPointsData(
         disasterEventData[eventType].eventPoints,
         props.eventTypeSpec[eventType]
@@ -420,7 +450,7 @@ export function DisasterEventMapTile(
           return props.eventTypeSpec[point.disasterType].color;
         },
         undefined,
-        placeInfo.selectedPlace.dcid == EARTH_NAMED_TYPED_PLACE.dcid
+        props.place.dcid == EARTH_NAMED_TYPED_PLACE.dcid
           ? MAP_POINTS_MIN_RADIUS_EARTH
           : MAP_POINTS_MIN_RADIUS
       );

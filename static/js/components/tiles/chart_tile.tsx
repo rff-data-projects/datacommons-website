@@ -21,12 +21,10 @@
 import _ from "lodash";
 import React, { useRef } from "react";
 
+import { INITAL_LOADING_CLASS } from "../../constants/tile_constants";
 import { ChartEmbed } from "../../place/chart_embed";
-import {
-  formatString,
-  getSourcesJsx,
-  ReplacementStrings,
-} from "../../utils/tile_utils";
+import { formatString, ReplacementStrings } from "../../utils/tile_utils";
+import { ChartFooter } from "./chart_footer";
 
 interface ChartTileContainerProp {
   title: string;
@@ -40,42 +38,41 @@ interface ChartTileContainerProp {
   getDataCsv?: () => string;
   // Extra classes to add to the container.
   className?: string;
+  // Whether or not this is the initial loading state.
+  isInitialLoading?: boolean;
 }
 
 export function ChartTileContainer(props: ChartTileContainerProp): JSX.Element {
   const containerRef = useRef(null);
   const embedModalElement = useRef<ChartEmbed>(null);
-  const title = props.title
-    ? formatString(props.title, props.replacementStrings)
-    : "";
+  // on initial loading, hide the title text
+  const title =
+    props.title && !props.isInitialLoading
+      ? formatString(props.title, props.replacementStrings)
+      : "";
+  const showEmbed = props.allowEmbed && !props.isInitialLoading;
   return (
     <div
       className={`chart-container ${props.className ? props.className : ""}`}
       ref={containerRef}
     >
-      {title && <h4>{title}</h4>}
-      {props.children}
-      <footer id="chart-container-footer">
-        {!_.isEmpty(props.sources) && (
-          <div className="sources">
-            Data from {getSourcesJsx(props.sources)}
-          </div>
-        )}
-        <div className="outlinks">
-          {props.allowEmbed && (
-            <a
-              href="#"
-              onClick={(event) => {
-                event.preventDefault();
-                handleEmbed();
-              }}
-            >
-              Export
-            </a>
-          )}
-        </div>
-      </footer>
-      {props.allowEmbed && <ChartEmbed ref={embedModalElement} />}
+      <div
+        className={`chart-content ${
+          props.isInitialLoading ? INITAL_LOADING_CLASS : ""
+        }`}
+      >
+        {
+          /* If props.title is not empty, we want to render this header element
+              even if title is empty to keep the space on the page */
+          props.title && <h4>{title}</h4>
+        }
+        {props.children}
+      </div>
+      <ChartFooter
+        sources={props.sources}
+        handleEmbed={showEmbed ? handleEmbed : null}
+      />
+      {showEmbed && <ChartEmbed ref={embedModalElement} />}
     </div>
   );
 
@@ -98,7 +95,7 @@ export function ChartTileContainer(props: ChartTileContainerProp): JSX.Element {
     embedModalElement.current.show(
       svgXml,
       props.getDataCsv ? props.getDataCsv() : "",
-      svgWidth,
+      svgWidth || containerRef.current.offsetWidth,
       svgHeight,
       chartTitle,
       "",

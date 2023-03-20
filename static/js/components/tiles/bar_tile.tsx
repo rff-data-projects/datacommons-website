@@ -30,7 +30,7 @@ import { RankingPoint } from "../../types/ranking_unit_types";
 import { stringifyFn } from "../../utils/axios";
 import { dataGroupsToCsv } from "../../utils/chart_csv_utils";
 import { getPlaceNames } from "../../utils/place_utils";
-import { formatNumber } from "../../utils/string_utils";
+import { formatNumber, getDateRange } from "../../utils/string_utils";
 import {
   getStatVarName,
   getUnitString,
@@ -61,6 +61,7 @@ interface BarChartData {
   dataGroup: DataGroup[];
   sources: Set<string>;
   unit: string;
+  dateRange: string;
 }
 
 export function BarTile(props: BarTilePropType): JSX.Element {
@@ -85,23 +86,27 @@ export function BarTile(props: BarTilePropType): JSX.Element {
     }
   }, [props, barChartData]);
 
-  if (!barChartData) {
-    return null;
-  }
   const rs: ReplacementStrings = {
-    place: props.place ? props.place.name : "",
-    date: "",
+    placeName: props.place ? props.place.name : "",
+    date: barChartData && barChartData.dateRange,
   };
   return (
     <ChartTileContainer
       title={props.title}
-      sources={barChartData.sources}
+      sources={barChartData && barChartData.sources}
       replacementStrings={rs}
       className={`${props.className} bar-chart`}
       allowEmbed={true}
-      getDataCsv={() => dataGroupsToCsv(barChartData.dataGroup)}
+      getDataCsv={
+        barChartData ? () => dataGroupsToCsv(barChartData.dataGroup) : null
+      }
+      isInitialLoading={_.isNull(barChartData)}
     >
-      <div id={props.id} className="svg-container"></div>
+      <div
+        id={props.id}
+        className="svg-container"
+        style={{ minHeight: props.svgChartHeight }}
+      ></div>
     </ChartTileContainer>
   );
 }
@@ -156,7 +161,6 @@ function processData(
   const raw = _.cloneDeep(rawData);
   const dataGroups: DataGroup[] = [];
   const sources = new Set<string>();
-  // TODO(beets): Fill in source URLs.
 
   // Find the most populated places.
   let popPoints: RankingPoint[] = [];
@@ -174,6 +178,7 @@ function processData(
   getPlaceNames(Array.from(popPoints).map((x) => x.placeDcid)).then(
     (placeNames) => {
       let unit = "";
+      const dates: Set<string> = new Set();
       for (const point of popPoints) {
         const placeDcid = point.placeDcid;
         const dataPoints: DataPoint[] = [];
@@ -188,6 +193,7 @@ function processData(
             value: stat.value || 0,
             dcid: placeDcid,
           };
+          dates.add(stat.date);
           if (raw.facets[stat.facet]) {
             sources.add(raw.facets[stat.facet].provenanceUrl);
             const svUnit = getUnitString(
@@ -216,6 +222,7 @@ function processData(
       setBarChartData({
         dataGroup: dataGroups,
         sources: sources,
+        dateRange: getDateRange(Array.from(dates)),
         unit,
       });
     }

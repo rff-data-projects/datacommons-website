@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,8 @@
  * limitations under the License.
  */
 
-import { PropertyValue } from "../shared/types";
 /**
- * Types specific to event pages
+ * Styling for sustainability explorer
  */
-export interface Property {
-  // Stores all values of a single property of an event.
-  // You can think of this as representing edges to other nodes (values)
-  // with the same label (dcid).
-  dcid: string;
-  values: Array<PropertyValue>;
-}
+
+@use "./base_subject_page";
