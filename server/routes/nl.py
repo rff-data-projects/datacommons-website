@@ -17,6 +17,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from typing import Dict, List
 
@@ -47,6 +48,7 @@ import server.lib.nl.utterance as nl_utterance
 from server.lib.util import get_nl_disaster_config
 import server.services.bigtable as bt
 import server.services.datacommons as dc
+import shared.lib.utils as shared_utils
 
 bp = Blueprint('nl', __name__, url_prefix='/nl')
 
@@ -104,7 +106,9 @@ def _remove_places(query, place_str_to_dcids: Dict[str, str]):
     needle = "in " + p_str
     if needle not in query:
       needle = p_str
-    query = query.replace(needle, "")
+    # Use \b<word>\b to match the word and not the string
+    # within another word (eg to avoid match "us" in "houses").
+    query = re.sub(rf"\b{needle}\b", "", query)
 
   # Remove any extra spaces and return.
   return ' '.join(query.split())
@@ -112,25 +116,47 @@ def _remove_places(query, place_str_to_dcids: Dict[str, str]):
 
 def _get_place_from_dcids(place_dcids: List[str],
                           debug_logs: Dict) -> List[Place]:
-  places = []
-  place_types_dict = dc.property_values(place_dcids, 'typeOf')
-  place_names_dict = dc.property_values(place_dcids, 'name')
+  place_info_result = dc.get_place_info(place_dcids)
+  dcid2place = {}
+  for res in place_info_result.get('data', []):
+    if 'node' not in res or 'info' not in res:
+      continue
+    dcid = res['node']
+    info = res['info']
+    if 'self' not in info:
+      continue
+    self = info['self']
+    if 'name' not in self or 'type' not in self:
+      continue
+    name = self['name']
+    ptype = self['type']
+    country = None
+    for parent in info.get('parents', []):
+      if ('dcid' in parent and 'type' in parent and
+          parent['type'] == 'Country'):
+        country = parent['dcid']
+        break
+    if not country and ptype == 'Country':
+      # Set country for entities of type country too, so
+      # downstream code can rely on it.
+      country = dcid
+    dcid2place[dcid] = Place(dcid=dcid,
+                             name=name,
+                             place_type=ptype,
+                             country=country)
 
+  places = []
   dc_resolve_failures = []
   # Iterate in the same order as place_dcids.
   for p_dcid in place_dcids:
 
-    if (p_dcid in place_types_dict) and (p_dcid in place_names_dict):
-      p_types = place_types_dict[p_dcid]
-      p_type = _get_preferred_type(p_types)
-      p_name = place_names_dict[p_dcid][0]
-
-      places.append(Place(dcid=p_dcid, name=p_name, place_type=p_type))
-    else:
+    if p_dcid not in dcid2place:
       logging.info(
           f"Place DCID ({p_dcid}) did not correspond to a place_type and/or place name."
       )
       dc_resolve_failures.append(p_dcid)
+    else:
+      places.append(dcid2place[p_dcid])
 
   debug_logs.update({
       "dc_resolution_failure": dc_resolve_failures,
@@ -211,7 +237,8 @@ def _result_with_debug_info(data_dict: Dict, status: str,
   svs_dict = {
       'SV': query_detection.svs_detected.sv_dcids,
       'CosineScore': query_detection.svs_detected.sv_scores,
-      'SV_to_Sentences': query_detection.svs_detected.svs_to_sentences
+      'SV_to_Sentences': query_detection.svs_detected.svs_to_sentences,
+      'MultiSV': query_detection.svs_detected.multi_sv,
   }
   svs_to_sentences = query_detection.svs_detected.svs_to_sentences
 
@@ -227,6 +254,7 @@ def _result_with_debug_info(data_dict: Dict, status: str,
   correlation_classification = "<None>"
   clustering_classification = "<None>"
   event_classification = "<None>"
+  quantity_classification = "<None>"
 
   for classification in query_detection.classifications:
     if classification.type == ClassificationType.RANKING:
@@ -248,12 +276,8 @@ def _result_with_debug_info(data_dict: Dict, status: str,
           str(classification.attributes.contained_in_place_type)
     elif classification.type == ClassificationType.CORRELATION:
       correlation_classification = str(classification.type)
-    elif classification.type == ClassificationType.CLUSTERING:
-      clustering_classification = str(classification.type)
-      clustering_classification += f". Top two SVs: "
-      clustering_classification += f"{classification.attributes.sv_dcid_1, classification.attributes.sv_dcid_2,}. "
-      clustering_classification += f"Cluster # 0: {str(classification.attributes.cluster_1_svs)}. "
-      clustering_classification += f"Cluster # 1: {str(classification.attributes.cluster_2_svs)}."
+    elif classification.type == ClassificationType.QUANTITY:
+      quantity_classification = str(classification.attributes)
 
   debug_info = {
       'status': status,
@@ -269,6 +293,7 @@ def _result_with_debug_info(data_dict: Dict, status: str,
       'comparison_classification': comparison_classification,
       'correlation_classification': correlation_classification,
       'event_classification': event_classification,
+      'quantity_classification': quantity_classification,
       'counters': debug_counters,
       'data_spec': uttr_history,
   }
@@ -303,7 +328,8 @@ def _result_with_debug_info(data_dict: Dict, status: str,
 
 
 def _detection(orig_query: str, cleaned_query: str,
-               query_detection_debug_logs: Dict) -> Detection:
+               query_detection_debug_logs: Dict,
+               counters: ctr.Counters) -> Detection:
   model = current_app.config['NL_MODEL']
 
   # Step 1: find all relevant places and the name/type of the main place found.
@@ -368,7 +394,6 @@ def _detection(orig_query: str, cleaned_query: str,
         "place_resolution"] = "Place resolution did not trigger (no place dcids found)."
 
   # Step 3: Identify the SV matched based on the query.
-  sv_debug_logs = {}
   svs_scores_dict = _empty_svs_score_dict()
   try:
     svs_scores_dict = model.detect_svs(
@@ -382,24 +407,30 @@ def _detection(orig_query: str, cleaned_query: str,
       query=query,
       sv_dcids=svs_scores_dict['SV'],
       sv_scores=svs_scores_dict['CosineScore'],
-      svs_to_sentences=svs_scores_dict['SV_to_Sentences'])
+      svs_to_sentences=svs_scores_dict['SV_to_Sentences'],
+      multi_sv=svs_scores_dict['MultiSV'])
 
   # Step 4: find query classifiers.
   ranking_classification = model.heuristic_ranking_classification(query)
   comparison_classification = model.heuristic_comparison_classification(query)
+  correlation_classification = model.heuristic_correlation_classification(query)
   overview_classification = model.heuristic_overview_classification(query)
   size_type_classification = model.heuristic_size_type_classification(query)
   time_delta_classification = model.heuristic_time_delta_classification(query)
   contained_in_classification = model.heuristic_containedin_classification(
       query)
   event_classification = model.heuristic_event_classification(query)
+  quantity_classification = \
+    model.heuristic_quantity_classification(query, counters)
   logging.info(f'Ranking classification: {ranking_classification}')
   logging.info(f'Comparison classification: {comparison_classification}')
+  logging.info(f'Correlation classification: {correlation_classification}')
   logging.info(f'SizeType classification: {size_type_classification}')
   logging.info(f'TimeDelta classification: {time_delta_classification}')
   logging.info(f'ContainedIn classification: {contained_in_classification}')
   logging.info(f'Event Classification: {event_classification}')
   logging.info(f'Overview classification: {overview_classification}')
+  logging.info(f'Quantity classification: {quantity_classification}')
 
   # Set the Classifications list.
   classifications = []
@@ -417,10 +448,8 @@ def _detection(orig_query: str, cleaned_query: str,
     classifications.append(event_classification)
   if overview_classification is not None:
     classifications.append(overview_classification)
-
-  # Correlation classification
-  correlation_classification = model.heuristic_correlation_classification(query)
-  logging.info(f'Correlation classification: {correlation_classification}')
+  if quantity_classification is not None:
+    classifications.append(quantity_classification)
   if correlation_classification is not None:
     classifications.append(correlation_classification)
 
@@ -476,7 +505,7 @@ def data():
     context_history = request.get_json().get('contextHistory', [])
     escaped_context_history = escape(context_history)
 
-  query = str(escape(utils.remove_punctuations(original_query)))
+  query = str(escape(shared_utils.remove_punctuations(original_query)))
   res = {
       'place': {
           'dcid': '',
@@ -486,21 +515,22 @@ def data():
       'config': {},
       'context': escaped_context_history
   }
-  if not query:
-    logging.info("Query was empty")
-    return _result_with_debug_info(res, "Aborted: Query was Empty.",
-                                   _detection("", ""), escaped_context_history,
-                                   {})
 
   counters = ctr.Counters()
-
   query_detection_debug_logs = {}
   query_detection_debug_logs["original_query"] = query
+
+  if not query:
+    logging.info("Query was empty")
+    query_detection = _detection("", "", query_detection_debug_logs, counters)
+    return _result_with_debug_info(res, "Aborted: Query was Empty.",
+                                   query_detection, escaped_context_history, {})
+
   # Query detection routine:
   # Returns detection for Place, SVs and Query Classifications.
   start = time.time()
   query_detection = _detection(str(escape(original_query)), query,
-                               query_detection_debug_logs)
+                               query_detection_debug_logs, counters)
   counters.timeit('query_detection', start)
 
   # Generate new utterance.

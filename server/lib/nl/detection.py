@@ -26,6 +26,7 @@ class Place:
   dcid: str
   name: str
   place_type: str
+  country: str = None
 
 
 @dataclass
@@ -52,6 +53,8 @@ class SVDetection:
 
   # Helpful to have all svs to sentences.
   svs_to_sentences: Dict[str, List[str]]
+  # Multi SV detection.
+  multi_sv: Dict
 
 
 class RankingType(IntEnum):
@@ -100,11 +103,16 @@ class ContainedInPlaceType(str, Enum):
   PLACE = "Place"
   COUNTRY = "Country"
   STATE = "State"
-  PROVINCE = "Province"
   COUNTY = "County"
   CITY = "City"
+  PROVINCE = "Province"
   DISTRICT = "District"
-  TOWN = "Town"
+  DEPARTMENT = "Department"
+  DIVISION = "Division"
+  MUNICIPALITY = "Municipality"
+  PARISH = "Parish"
+  CONTINENT = "Continent"
+
   ZIP = "CensusZipCodeTabulationArea"
   SCHOOL = "School"
   PUBLIC_SCHOOL = "PublicSchool"
@@ -114,9 +122,20 @@ class ContainedInPlaceType(str, Enum):
   MIDDLE_SCHOOL = "MiddleSchool"
   HIGH_SCHOOL = "HighSchool"
 
-  # Across is a generic containedInPlaceType which determines if the
-  # query is using the word "across".
-  ACROSS = "Across"
+  # NOTE: This is a type that State/Province may get remapped to.
+  ADMIN_AREA_1 = "AdministrativeArea1"
+  # NOTE: This is a type that County/District may get remapped to.
+  ADMIN_AREA_2 = "AdministrativeArea2"
+  ADMIN_AREA_3 = "AdministrativeArea3"
+
+  # Typically corresponds to state equivalent
+  EU_NUTS_2 = "EurostatNUTS2"
+  # Typically corresponds to county equivalent
+  EU_NUTS_3 = "EurostatNUTS3"
+
+  # Indicates that the fulfiller should use the contained-in-place-type
+  # depending on the place.
+  DEFAULT_TYPE = "DefaultType"
 
 
 class EventType(IntEnum):
@@ -257,20 +276,64 @@ class SizeTypeClassificationAttributes(ClassificationAttributes):
   size_types_trigger_words: List[str]
 
 
+class QCmpType(str, Enum):
+  """Enum to represent comparison types"""
+  EQ = "EQ"
+  GE = "GE"
+  GT = "GT"
+  LE = "LE"
+  LT = "LT"
+
+
+@dataclass
+class Quantity:
+  """Represents a numeric quantity that in a filter query."""
+  cmp: QCmpType
+  # The converted value
+  val: float
+
+  def __str__(self):
+    return f'({self.cmp.value} {self.val})'
+
+
+@dataclass
+class QuantityRange:
+  """Represents a range of two numeric quantities."""
+  lower: Quantity
+  upper: Quantity
+
+  def __str__(self):
+    return f'{self.lower} {self.upper}'
+
+
+@dataclass
+class QuantityClassificationAttributes(ClassificationAttributes):
+  """Quantity classification attributes."""
+  # One and only one of the below is set.
+  qval: Quantity
+  qrange: QuantityRange
+  # Smallest index in the query of the quantity sub-string.
+  idx: int
+
+  def __str__(self):
+    if self.qval:
+      return f'({self.qval} idx:{self.idx})'
+    return f'({self.qrange} idx:{self.idx})'
+
+
 class ClassificationType(IntEnum):
   OTHER = 0
   SIMPLE = 1
   RANKING = 2
-  TEMPORAL = 3
+  QUANTITY = 3
   CONTAINED_IN = 4
   CORRELATION = 5
-  CLUSTERING = 6
   COMPARISON = 7
   TIME_DELTA = 8
   EVENT = 9
   OVERVIEW = 10
   SIZE_TYPE = 11
-  UNKNOWN = 12
+  UNKNOWN = 13
 
 
 @dataclass

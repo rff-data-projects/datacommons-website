@@ -14,14 +14,21 @@
  * limitations under the License.
  */
 
-resource "google_project_iam_member" "web_robot_storage_roles" {
-  for_each = toset([
-    "roles/bigquery.admin",   # BigQuery
-    "roles/bigtable.reader",  # Bigtable
-    "roles/storage.objectViewer",  # Branch Cache Read
-    "roles/pubsub.editor" # Branch Cache Subscription
-  ])
-  role = each.key
-  member = "serviceAccount:${var.custom_dc_web_robot_email}"
-  project = var.base_storage_project_id
+import { StatMetadata } from "../shared/stat_types";
+
+/**
+ * Returns the unit from StatMetadata if there is a unit.
+ * @param statMetadata
+ */
+export function getUnit(statMetadata: StatMetadata): string {
+  if (statMetadata.unitDisplayName) {
+    return statMetadata.unitDisplayName;
+  }
+  if (statMetadata.unit) {
+    return statMetadata.unit;
+  }
+  if (statMetadata.scalingFactor === "100") {
+    return "%";
+  }
+  return "";
 }
