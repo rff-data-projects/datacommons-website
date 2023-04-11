@@ -60,7 +60,7 @@ $container-max-widths: (
   sm: 540px,
   md: 720px,
   lg: 960px,
-  xl: 1500px,
+  xl: 1385px,  // Matches .container-fluid
 );
 
 $hover-box-shadow: 0 1px 3px 1px rgb(66 66 66 / 20%),
