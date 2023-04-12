@@ -5,9 +5,6 @@ let item2L = document.getElementById("nav-2L");
 let item2R = document.getElementById("nav-2R");
 let item3 = document.getElementById("item-3");
 let item3L = document.getElementById("nav-3L");
-let item3R = document.getElementById("nav-3R");
-let item4 = document.getElementById("item-4");
-let item4L = document.getElementById("nav-4L");
 
 let item10 = document.getElementById("item-10");
 let item10R = document.getElementById("nav-10R");
@@ -36,12 +33,6 @@ item2R.addEventListener("click", () => {
 });
 item3L.addEventListener("click", () => {
   navAction("3L");
-});
-item3R.addEventListener("click", () => {
-  navAction("3R");
-});
-item4L.addEventListener("click", () => {
-  navAction("4L");
 });
 
 item10R.addEventListener("click", () => {
@@ -83,12 +74,6 @@ function navAction(item) {
   } else if (item == "3L") {
     item2.style.display = "inline";
     item3.style.display = "none";
-  } else if (item == "3R") {
-    item3.style.display = "none";
-    item4.style.display = "inline";
-  } else if (item == "4L") {
-    item3.style.display = "inline";
-    item4.style.display = "none";
   } else if (item == "10R") {
     item10.style.display = "none";
     item11.style.display = "inline";
