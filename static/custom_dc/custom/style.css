@@ -353,3 +353,8 @@ section.story {
 .reversed .story-block {
   flex-direction: row-reverse;
 }
+
+footer .footer-left a {
+  font-weight: bold;
+  border-bottom: 1px solid #c3e1f9;
+}
