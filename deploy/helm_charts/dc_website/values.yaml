@@ -25,8 +25,9 @@ website:
   # iap can be enabled independently of ingress.
   iap:
     enabled: false
-    clientID:
-    secret:
+
+  replicas:
+    default: 1
 
 nameOverride: ""
 fullnameOverride: ""
@@ -44,7 +45,9 @@ serviceAccount:
 
 ingress:
   name: website-ingress
-  enabled:
+  ipName: dc-website-ip
+  certName: dc-website-cert
+  enabled: true
 
 ###############################################################################
 # Config for Mixer helm chart
@@ -62,7 +65,7 @@ mixer:
     tmcfCSVBucket: ""
     tmcfCSVFolder: ""
 
-    gcpProjectID:
+    hostProject:
     serviceName:
 
     schemaConfigs:
@@ -73,15 +76,48 @@ esp:
     tag: "1"
     pullPolicy: Always
 
-replicas:
-  default: 1
-
 kgStoreConfig:
   bigqueryVersion:
   baseBigtableInfo:
   customBigtableInfo: ""
 
 memdbJSON: ""
+
+serviceGroups:
+  svg:
+    urlPaths:
+      - "/place/stat-var-group/*"
+      - "/stat-var/*"
+      - "/v1/info/variable-group/*"
+      - "/v1/variable/*"
+      - "/v1/bulk/info/variable-group"
+      - "/v1/bulk/info/variable"
+    replicas: 1
+    resources:
+      memoryRequest: "8G"
+      memoryLimit: "8G"
+    useSearch: true
+  default:
+    urlPaths:
+      - "/*"
+    replicas: 1
+    resources:
+      memoryRequest: "4G"
+      memoryLimit: "4G"
+
+
 ###############################################################################
 # END Config for Mixer helm chart
+###############################################################################
+
+###############################################################################
+# Config for NL
+###############################################################################
+nl:
+  enabled: false
+  embeddings: |
+    embeddings_file: embeddings_us_filtered_2023_02_24_08_32_22.csv
+
+###############################################################################
+# END Config for NL
 ###############################################################################
