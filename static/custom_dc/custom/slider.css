@@ -1,9 +1,29 @@
-#item-2,
-#item-3,
-#item-4,
-#item-11,
-#item-12,
-#item-21,
-#item-22 {
-  display: none
+#item-2, #item-3, #item-4, #item-11, #item-12, #item-21, #item-22 {
+    display: none;
+}
+
+.hidden-menu {
+    display: none;
+    position: absolute;
+    bottom: 38px;
+    background: white;
+    border: 1px solid #e1f0fc;
+    box-shadow: 0 3px 10px rgb(0 0 0 / 0.1);
+    right: 0px;
+}
+
+.story-image {
+    cursor: pointer;
+}
+
+.menu-item {
+    height: 38px; border-top: 1px solid #e1f0fc;
+    justify-content: right;
+    align-items: center;
+    display: flex;
+    padding: 0px 10px;
+}
+
+.menu-item:first-child {
+    border-top: 0px solid black;
 }
