@@ -21,7 +21,7 @@
   font-family: "Calibre";
   font-style: italic;
   font-weight: 400;
-  src: url(https://www.rff.org/documents/3725/CalibreWeb-RegularItalic.svg#Calibre) format("svg"), url(/custom_dc/custom/fonts/CalibreWeb-RegularItalic.ttf) format("truetype"), url(/custom_dc/custom/fonts/CalibreWeb-RegularItalic.woff) format("woff")
+  src: url(./fonts/CalibreWeb-RegularItalic.woff) format("woff"), url(./fonts/CalibreWeb-RegularItalic.woff2) format("woff2");
 }
 
 @font-face {
@@ -29,7 +29,7 @@
   font-family: "Calibre";
   font-style: normal;
   font-weight: 400;
-  src: url(https://www.rff.org/documents/3722/CalibreWeb-Regular.svg#Calibre) format("svg"), url(/custom_dc/custom/fonts/CalibreWeb-Regular.ttf) format("truetype"), url(/custom_dc/custom/fonts/CalibreWeb-Regular.woff) format("woff")
+  src: url(./fonts/CalibreWeb-Regular.woff) format("woff"), url(./fonts/CalibreWeb-Regular.woff2) format("woff2");
 }
 
 @font-face {
@@ -37,7 +37,7 @@
   font-family: "Calibre";
   font-style: italic;
   font-weight: 700;
-  src: url(https://www.rff.org/documents/3731/CalibreWeb-SemiboldItalic.svg#Calibre) format("svg"), url(/custom_dc/custom/fonts/CalibreWeb-SemiboldItalic.ttf) format("truetype"), url(/custom_dc/custom/fonts/CalibreWeb-SemiboldItalic.woff) format("woff")
+  src: url(./fonts/CalibreWeb-BoldItalic.woff) format("woff"), url(./fonts/CalibreWeb-BoldItalic.woff2) format("woff2");
 }
 
 @font-face {
@@ -45,7 +45,7 @@
   font-family: "Calibre";
   font-style: normal;
   font-weight: 700;
-  src: url(https://www.rff.org/documents/3728/CalibreWeb-Semibold.svg#Calibre) format("svg"), url(/custom_dc/custom/fonts/CalibreWeb-Semibold.ttf) format("truetype"), url(/custom_dc/custom/fonts/CalibreWeb-Semibold.woff) format("woff")
+  src: url(/custom_dc/custom/fonts/CalibreWeb-Bold.woff) format("woff"), url(/custom_dc/custom/fonts/CalibreWeb-Bold.woff2) format("woff2");
 }
 
 /* Override DC Default */
@@ -166,7 +166,7 @@ h6,
   margin-right: 20px;
 }
 
-@media (max-width:565px) {
+@media (max-width:620px) {
   .navbar-items {
     display: none
   }
@@ -238,6 +238,7 @@ h6,
   line-height: 70px;
   font-weight: 700;
   text-align: center;
+  margin-bottom: 0.5rem;
 }
 
 .hero-secondary {
@@ -351,4 +352,9 @@ section.story {
 
 .reversed .story-block {
   flex-direction: row-reverse;
+}
+
+footer .footer-left a {
+  font-weight: bold;
+  border-bottom: 1px solid #c3e1f9;
 }
