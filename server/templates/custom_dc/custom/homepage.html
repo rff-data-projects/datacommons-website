@@ -21,6 +21,9 @@
 
 {% block head %}
 <link href="/custom_dc/custom/slider.css" rel="stylesheet">
+
+{# Open all links in a new tab by default. Links in the navbar and footer are explicitly exempt. #}
+<base target="_blank">
 {% endblock %}
 
 {% block content %}
