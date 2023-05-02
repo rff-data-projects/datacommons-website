@@ -105,34 +105,39 @@ class TestApiPointWithin(unittest.TestCase):
     }
 
     def post_side_effect(url, data):
-      if url.endswith('/v1/bulk/observations/point/linked') and data == {
-          'linked_entity': 'country/USA',
-          'linked_property': 'containedInPlace',
-          'entity_type': 'State',
-          'variables': ['Count_Person', 'UnemploymentRate_Person'],
+      if url.endswith('/v2/observation') and data == {
+          'select': ['date', 'value', 'variable', 'entity'],
+          'entity': {
+              'expression': 'country/USA<-containedInPlace+{typeOf:State}'
+          },
+          'variable': {
+              'dcids': ['Count_Person', 'UnemploymentRate_Person']
+          },
           'date': '2015',
-          'all_facets': False
       }:
-        return mock_data.POINT_WITHIN_2015
-      if url.endswith('/v1/bulk/triples/out') and data == {
+        return mock_data.POINT_WITHIN_2015_ALL_FACETS
+
+      if url.endswith('/v2/node') and data == {
           'nodes': ['testUnit'],
+          'property': '->*'
       }:
         return {
-            'data': [{
-                'node': 'testUnit',
-                'triples': {
-                    'name': {
-                        'nodes': [{
-                            'value': 'longUnitName'
-                        }]
-                    },
-                    'shortDisplayName': {
-                        'nodes': [{
-                            'value': 'shortUnit'
-                        }]
+            'data': {
+                'testUnit': {
+                    'arcs': {
+                        'name': {
+                            'nodes': [{
+                                'value': 'longUnitName'
+                            }]
+                        },
+                        'shortDisplayName': {
+                            'nodes': [{
+                                'value': 'shortUnit'
+                            }]
+                        },
                     },
                 }
-            }]
+            }
         }
 
     post.side_effect = post_side_effect

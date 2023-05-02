@@ -1,4 +1,4 @@
-# Copyright 2021 Google LLC
+# Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -231,13 +231,10 @@ def _get_unit_names(units: List[str]) -> Dict:
     return {}
 
   dcid2name = {}
-  resp = dc.bulk_triples(nodes=units, direction='out')
+  resp = dc.triples(nodes=units, direction='out')
 
-  for node in resp.get('data', []):
-    if 'node' not in node or 'triples' not in node:
-      continue
-    dcid = node['node']
-    triples = node['triples']
+  for dcid in resp:
+    triples = resp[dcid].get('arcs', {})
     short_name = triples.get('shortDisplayName', None)
     name = triples.get('name', None)
     if short_name and short_name.get('nodes', []):
@@ -267,15 +264,29 @@ def _get_processed_facets(facets):
   return result
 
 
+def _convert_v2_obs_point(facet):
+  return {
+      'facet': facet['facetId'],
+      'date': facet['observations'][0]['date'],
+      'value': facet['observations'][0]['value']
+  }
+
+
+def _convert_v2_obs_series(facet):
+  return {
+      'facet': facet['facetId'],
+      'series': facet['observations'],
+  }
+
+
 def point_core(entities, variables, date, all_facets):
-  resp = dc.obs_point(entities, variables, date, all_facets)
+  resp = dc.obs_point(entities, variables, date)
   resp['facets'] = _get_processed_facets(resp.get('facets', {}))
   return _compact_point(resp, all_facets)
 
 
 def point_within_core(parent_entity, child_type, variables, date, all_facets):
-  resp = dc.obs_point_within(parent_entity, child_type, variables, date,
-                             all_facets)
+  resp = dc.obs_point_within(parent_entity, child_type, variables, date)
   resp['facets'] = _get_processed_facets(resp.get('facets', {}))
   return _compact_point(resp, all_facets)
 
@@ -283,25 +294,30 @@ def point_within_core(parent_entity, child_type, variables, date, all_facets):
 # Returns a compact version of observation point API results
 def _compact_point(point_resp, all_facets):
   result = {
-      'facets': point_resp.get('facets', {}),
+      'facets': {},
   }
+  if all_facets:
+    result['facets'] = point_resp['facets']
   data = {}
-  for obs_by_variable in point_resp.get('observationsByVariable', []):
-    if 'variable' not in obs_by_variable:
-      continue
-    var = obs_by_variable['variable']
+  for var, var_obs in point_resp.get('byVariable', {}).items():
     data[var] = {}
-    for obs_by_entity in obs_by_variable.get('observationsByEntity', []):
-      if 'entity' not in obs_by_entity:
-        continue
-      entity = obs_by_entity['entity']
+    for entity, entity_obs in var_obs.get('byEntity', {}).items():
       data[var][entity] = None
-      if 'pointsByFacet' in obs_by_entity:
+      if 'orderedFacets' in entity_obs:
         if all_facets:
-          data[var][entity] = obs_by_entity['pointsByFacet']
+          data[var][entity] = [
+              _convert_v2_obs_point(x) for x in entity_obs['orderedFacets']
+          ]
         else:
-          # There should be only one point.
-          data[var][entity] = obs_by_entity['pointsByFacet'][0]
+          # There should be only one point. Find the facet with the latest date
+          best = None
+          for x in entity_obs['orderedFacets']:
+            point = _convert_v2_obs_point(x)
+            if not best or point['date'] > best['date']:
+              best = point
+          data[var][entity] = best
+          facet_id = best['facet']
+          result['facets'][facet_id] = point_resp['facets'][facet_id]
       else:
         if all_facets:
           data[var][entity] = []
@@ -312,38 +328,39 @@ def _compact_point(point_resp, all_facets):
 
 
 def series_core(entities, variables, all_facets):
-  resp = dc.obs_series(entities, variables, all_facets)
+  resp = dc.obs_series(entities, variables)
   resp['facets'] = _get_processed_facets(resp.get('facets', {}))
   return _compact_series(resp, all_facets)
 
 
 def series_within_core(parent_entity, child_type, variables, all_facets):
-  resp = dc.obs_series_within(parent_entity, child_type, variables, all_facets)
+  resp = dc.obs_series_within(parent_entity, child_type, variables)
   resp['facets'] = _get_processed_facets(resp.get('facets', {}))
   return _compact_series(resp, all_facets)
 
 
 def _compact_series(series_resp, all_facets):
   result = {
-      'facets': series_resp.get('facets', {}),
+      'facets': {},
   }
+  if all_facets:
+    result['facets'] = series_resp['facets']
   data = {}
-  for obs_by_variable in series_resp.get('observationsByVariable', []):
-    if 'variable' not in obs_by_variable:
-      continue
-    var = obs_by_variable['variable']
+  for var, var_obs in series_resp.get('byVariable', {}).items():
     data[var] = {}
-    for obs_by_entity in obs_by_variable.get('observationsByEntity', []):
-      if 'entity' not in obs_by_entity:
-        continue
-      entity = obs_by_entity['entity']
+    for entity, entity_obs in var_obs.get('byEntity', {}).items():
       data[var][entity] = None
-      if 'seriesByFacet' in obs_by_entity:
+      if 'orderedFacets' in entity_obs:
         if all_facets:
-          data[var][entity] = obs_by_entity['seriesByFacet']
+          data[var][entity] = [
+              _convert_v2_obs_series(x) for x in entity_obs['orderedFacets']
+          ]
         else:
           # There should be only one series
-          data[var][entity] = obs_by_entity['seriesByFacet'][0]
+          data[var][entity] = _convert_v2_obs_series(
+              entity_obs['orderedFacets'][0])
+          facet_id = data[var][entity]['facet']
+          result['facets'][facet_id] = series_resp['facets'][facet_id]
       else:
         if all_facets:
           data[var][entity] = []
@@ -400,3 +417,26 @@ def gzip_compress_response(raw_content, is_json):
   if is_json:
     response.headers['Content-Type'] = 'application/json'
   return response
+
+
+def property_values(nodes, prop, out=True):
+  """Returns a compact property values data out of REST API response."""
+  resp = dc.property_values(nodes, prop, out)
+  result = {}
+  for node, node_arcs in resp.get('data', {}).items():
+    result[node] = []
+    for v in node_arcs.get('arcs', {}).get(prop, {}).get('nodes', []):
+      if 'dcid' in v:
+        result[node].append(v['dcid'])
+      else:
+        result[node].append(v['value'])
+  return result
+
+
+def raw_property_values(nodes, prop, out=True):
+  """Returns full property values data out of REST API response."""
+  resp = dc.property_values(nodes, prop, out)
+  result = {}
+  for node, node_arcs in resp.get('data', {}).items():
+    result[node] = node_arcs.get('arcs', {}).get(prop, {}).get('nodes', [])
+  return result
