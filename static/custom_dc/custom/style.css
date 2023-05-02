@@ -281,6 +281,10 @@ section.story {
   flex: calc(50% - 20px);
 }
 
+.story-text p a {
+  font-weight: 700;
+}
+
 .story-nav div {
   display: inline;
 }

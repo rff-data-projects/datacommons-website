@@ -19,6 +19,7 @@ from server.app_env import local
 class Config(_base.Config):
   CUSTOM = True
   NAME = "Custom Data Commons"
+  GA_ACCOUNT = "G-C5D6R31ZZK"
 
 
 class LocalConfig(Config, local.Config):
@@ -31,3 +32,6 @@ class LocalConfig(Config, local.Config):
   #    `printf "<API_KEY>" | gcloud secrets create mixer-api-key --data-file=-`
   # 3. Update SECRET_PROJECT to be the custom GCP project id.
   SECRET_PROJECT = ''
+
+  # Unset GA tracking for local dev
+  GA_ACCOUNT = ''
