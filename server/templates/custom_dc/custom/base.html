@@ -34,6 +34,16 @@
 <html lang={{ locale }} id={{ page_id }}>
 
 <head>
+  {% if GA_ACCOUNT %}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ GA_ACCOUNT }}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { dataLayer.push(arguments); }
+      gtag('js', new Date());
+      gtag('config', '{{ GA_ACCOUNT }}');
+
+    </script>
+  {% endif %}
   <title>{{ title }} - Custom Data Commons Commons</title>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
