@@ -197,7 +197,7 @@ export function axiosMock(): void {
 
   // get places in for counties in geoId/06
   when(axios.get)
-    .calledWith("/api/place/places-in?dcid=geoId/06&placeType=County")
+    .calledWith("/api/place/descendent?dcids=geoId/06&descendentType=County")
     .mockResolvedValue({
       data: {
         "geoId/06": ["geoId/06001", "geoId/06002"],
@@ -275,7 +275,7 @@ export function axiosMock(): void {
 
   // get place stats vars for places in geoId/06
   when(axios.post)
-    .calledWith("/api/place/stat-vars/existence", {
+    .calledWith("/api/observation/existence", {
       entities: ["geoId/06001", "geoId/06002"],
       variables: ["Count_Person"],
     })
@@ -289,7 +289,7 @@ export function axiosMock(): void {
     });
 
   when(axios.post)
-    .calledWith("/api/place/stat-vars/existence", {
+    .calledWith("/api/observation/existence", {
       entities: ["geoId/06002", "geoId/06001"],
       variables: ["Count_Person"],
     })

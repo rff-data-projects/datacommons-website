@@ -82,7 +82,9 @@ function mockAxios(): void {
 
   // Counties in Delaware
   when(axios.get)
-    .calledWith(`/api/place/places-in-names?dcid=geoId/10&placeType=County`)
+    .calledWith(
+      "/api/place/descendent/name?dcid=geoId/10&descendentType=County"
+    )
     .mockResolvedValue({
       data: {
         "geoId/10001": "Kent County",
@@ -267,8 +269,8 @@ function mockAxios(): void {
   when(axios.get)
     .calledWith("/api/observations/point/within", {
       params: {
-        parent_entity: "geoId/10",
-        child_type: "County",
+        parentEntity: "geoId/10",
+        childType: "County",
         variables: ["Count_Person_Employed"],
         date: "",
       },
@@ -279,14 +281,14 @@ function mockAxios(): void {
         data: {
           Count_Person_Employed: data.Count_Person_Employed,
         },
-        facets: facets,
+        facets,
       },
     });
   when(axios.get)
     .calledWith("/api/observations/point/within", {
       params: {
-        parent_entity: "geoId/10",
-        child_type: "County",
+        parentEntity: "geoId/10",
+        childType: "County",
         variables: ["Count_HousingUnit"],
         date: "",
       },
@@ -297,14 +299,14 @@ function mockAxios(): void {
         data: {
           Count_HousingUnit: data.Count_HousingUnit,
         },
-        facets: facets,
+        facets,
       },
     });
   when(axios.get)
     .calledWith("/api/observations/point/within", {
       params: {
-        parent_entity: "geoId/10",
-        child_type: "County",
+        parentEntity: "geoId/10",
+        childType: "County",
         variables: ["Count_Establishment"],
         date: "",
       },
@@ -315,14 +317,14 @@ function mockAxios(): void {
         data: {
           Count_Establishment: data.Count_Establishment,
         },
-        facets: facets,
+        facets,
       },
     });
   when(axios.get)
     .calledWith("/api/observations/point/within/all", {
       params: {
-        parent_entity: "geoId/10",
-        child_type: "County",
+        parentEntity: "geoId/10",
+        childType: "County",
         variables: ["Count_Person_Employed"],
         date: "",
       },
@@ -333,14 +335,14 @@ function mockAxios(): void {
         data: {
           Count_Person_Employed: dataAll.Count_Person_Employed, // eslint-disable-line camelcase
         },
-        facets: facets,
+        facets,
       },
     });
   when(axios.get)
     .calledWith("/api/observations/point/within/all", {
       params: {
-        parent_entity: "geoId/10",
-        child_type: "County",
+        parentEntity: "geoId/10",
+        childType: "County",
         variables: ["Count_HousingUnit"],
         date: "",
       },
@@ -351,14 +353,14 @@ function mockAxios(): void {
         data: {
           Count_HousingUnit: dataAll.Count_HousingUnit, // eslint-disable-line camelcase
         },
-        facets: facets,
+        facets,
       },
     });
   when(axios.get)
     .calledWith("/api/observations/point/within/all", {
       params: {
-        parent_entity: "geoId/10",
-        child_type: "County",
+        parentEntity: "geoId/10",
+        childType: "County",
         variables: ["Count_Establishment"],
         date: "",
       },
@@ -369,7 +371,7 @@ function mockAxios(): void {
         data: {
           Count_Establishment: dataAll.Count_Establishment, // eslint-disable-line camelcase
         },
-        facets: facets,
+        facets,
       },
     });
 
@@ -405,8 +407,8 @@ function mockAxios(): void {
   when(axios.get)
     .calledWith("/api/observations/series/within", {
       params: {
-        parent_entity: "geoId/10",
-        child_type: "County",
+        parentEntity: "geoId/10",
+        childType: "County",
         variables: ["Count_Person"],
       },
       paramsSerializer: stringifyFn,
@@ -473,7 +475,7 @@ function mockAxios(): void {
     });
 
   when(axios.get)
-    .calledWith("/api/place/places-in?dcid=geoId/10&placeType=County")
+    .calledWith("/api/place/descendent?dcids=geoId/10&descendentType=County")
     .mockResolvedValue({
       data: {
         "geoId/10": ["geoId/10001", "geoId/10003", "geoId/10005"],
@@ -698,7 +700,7 @@ test("all functionalities", async () => {
   });
   await waitFor(() => {
     expect(axios.get).toHaveBeenCalledWith(
-      "/api/place/places-in?dcid=geoId/10&placeType=County"
+      "/api/place/descendent?dcids=geoId/10&descendentType=County"
     );
   });
 

@@ -40,7 +40,7 @@ namespace:
 serviceAccount:
   name: website-ksa
 
-singleClusterMode:
+ingress:
   name: website-ingress
   ipName: dc-website-ip
   certName: dc-website-cert
@@ -84,14 +84,13 @@ serviceGroups:
     urlPaths:
       - "/place/stat-var-group/*"
       - "/stat-var/*"
-      - "/v1/info/variable-group/*"
       - "/v1/variable/*"
       - "/v1/bulk/info/variable-group"
       - "/v1/bulk/info/variable"
     replicas: 1
     resources:
-      memoryRequest: "6G"
-      memoryLimit: "6G"
+      memoryRequest: "8G"
+      memoryLimit: "8G"
     useSearch: true
   observation:
     urlPaths:

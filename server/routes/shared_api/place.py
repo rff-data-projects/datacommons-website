@@ -15,23 +15,19 @@
 import collections
 import json
 import logging
-import urllib.parse
 
 from flask import Blueprint
-from flask import current_app
-from flask import escape
 from flask import g
 from flask import request
 from flask import Response
 from flask import url_for
 from flask_babel import gettext
+from markupsafe import escape
 
 from server.cache import cache
-from server.lib import util
+from server.lib import fetch
 import server.lib.i18n as i18n
 from server.lib.shared import names
-import server.lib.shared as shared_api
-from server.services.datacommons import fetch_data
 import server.services.datacommons as dc
 
 CHILD_PLACE_LIMIT = 50
@@ -122,7 +118,7 @@ bp = Blueprint("api_place", __name__, url_prefix='/api/place')
 
 
 def get_place_types(place_dcids):
-  place_types = util.property_values(place_dcids, 'typeOf')
+  place_types = fetch.property_values(place_dcids, 'typeOf')
   ret = {}
   for dcid in place_dcids:
     # We prefer to use specific type like "State", "County" over
@@ -169,7 +165,7 @@ def get_i18n_name(dcids, should_resolve_all=True):
   """
   if not dcids:
     return {}
-  response = util.property_values(dcids, 'nameWithLanguage')
+  response = fetch.property_values(dcids, 'nameWithLanguage')
   result = {}
   dcids_default_name = []
   locales = i18n.locale_choices(g.locale)
@@ -234,42 +230,41 @@ def get_named_typed_place():
   return Response(json.dumps(ret), 200, mimetype='application/json')
 
 
-@bp.route('/stat-vars/union', methods=['POST'])
-def get_stat_vars_union():
+@bp.route('/variable', methods=['GET', 'POST'])
+def get_place_variable():
   """Get all the statistical variables that exist for some places.
 
   Returns:
       List of unique statistical variable dcids each as a string.
   """
-  result = []
-  entities = sorted(request.json.get('dcids', []))
-  resp = dc.entity_variables(entities)
-  for var, entity_obs in resp['byVariable'].items():
-    if len(entity_obs.get('byEntity'), {}) == len(entities):
-      result.append(var)
-  return Response(json.dumps(result), 200, mimetype='application/json')
+  dcids = request.args.getlist('dcids')
+  if not dcids:
+    dcids = request.json['dcids']
+  resp = fetch.entity_variables(dcids)
+  # All the keys (stat var dcid) in resp are variables for at lease one of the
+  # places.
+  return Response(json.dumps(list(resp.keys())),
+                  200,
+                  mimetype='application/json')
 
 
-@bp.route('/stat-vars/existence', methods=['POST'])
-def get_stat_vars_existence():
-  """Check if statistical variables that exist for some places.
+@bp.route('/variable/count')
+def get_place_variable_count():
+  """Get count of statistical variables for places.
 
   Returns:
-      Map from variable to place to a boolean of whether there is observation.
+      A map from place dcid to the stat var count.
   """
+  dcids = request.args.getlist('dcids')
+  if not dcids:
+    return 'error: must provide `dcids` field', 400
   result = {}
-  variables = request.json.get('variables', [])
-  entities = request.json.get('entities', [])
-  # Populate result
-  for var in variables:
-    result[var] = {}
-    for e in entities:
-      result[var][e] = False
-  # Fetch existence check data
-  resp = dc.entity_variables_existence(variables, entities)
-  for var, entity_obs in resp.get('byVariable', {}).items():
-    for e in entity_obs.get('byEntity', {}):
-      result[var][e] = True
+  for dcid in dcids:
+    result[dcid] = 0
+  resp = fetch.entity_variables(dcids)
+  for _, entity_obs in resp.items():
+    for entity in entity_obs:
+      result[entity] += 1
   return Response(json.dumps(result), 200, mimetype='application/json')
 
 
@@ -287,18 +282,18 @@ def child(dcid):
 @cache.memoize(timeout=3600 * 24)  # Cache for one day.
 def child_fetch(parent_dcid):
   # Get contained places
-  contained_response = util.property_values([parent_dcid], 'containedInPlace',
-                                            False)
+  contained_response = fetch.property_values([parent_dcid], 'containedInPlace',
+                                             False)
   place_dcids = contained_response.get(parent_dcid, [])
 
-  overlaps_response = util.property_values([parent_dcid], 'geoOverlaps', False)
+  overlaps_response = fetch.property_values([parent_dcid], 'geoOverlaps', False)
   place_dcids = place_dcids + overlaps_response.get(parent_dcid, [])
 
   # Filter by wanted place types
   place_type = get_place_type(parent_dcid)
   wanted_types = WANTED_PLACE_TYPES.get(place_type, ALL_WANTED_PLACE_TYPES)
 
-  place_types = util.property_values(place_dcids, 'typeOf', True)
+  place_types = fetch.property_values(place_dcids, 'typeOf')
   wanted_dcids = set()
   for dcid, types in place_types.items():
     for t in types:
@@ -309,15 +304,15 @@ def child_fetch(parent_dcid):
 
   # Fetch population of child places
   pop = {}
-  obs_response = util.point_core(wanted_dcids, [POPULATION_DCID],
-                                 date='LATEST',
-                                 all_facets=False)
+  obs_response = fetch.point_core(wanted_dcids, [POPULATION_DCID],
+                                  date='LATEST',
+                                  all_facets=False)
   for entity, points in obs_response['data'].get(POPULATION_DCID, {}).items():
     if points:
-      pop[entity] = points[0]['value']
+      pop[entity] = points.get('value')
 
   # Build return object
-  place_names = util.property_values(wanted_dcids, 'name', True)
+  place_names = fetch.property_values(wanted_dcids, 'name')
   result = collections.defaultdict(list)
   for place_dcid in wanted_dcids:
     for place_type in place_types[place_dcid]:
@@ -368,7 +363,8 @@ def parent_places(dcids):
     dcid = item['node']
     parents = item['info'].get('parents', [])
     parents = [
-        x for x in parents if not x['type'].startswith('AdministrativeArea')
+        x for x in parents
+        if ('type' in x and not x['type'].startswith('AdministrativeArea'))
     ]
     result[dcid] = parents
   return result
@@ -388,7 +384,7 @@ def api_mapinfo(dcid):
   up = -90
   down = 90
   coordinate_sequence_set = []
-  kmlCoordinates = util.property_values([dcid], 'kmlCoordinates')[dcid]
+  kmlCoordinates = fetch.property_values([dcid], 'kmlCoordinates')[dcid]
   if not kmlCoordinates:
     return {}
 
@@ -421,18 +417,6 @@ def api_mapinfo(dcid):
       'coordinateSequenceSet': coordinate_sequence_set
   }
   return Response(json.dumps(result), 200, mimetype='application/json')
-
-
-@cache.memoize(timeout=3600 * 24)  # Cache for one day.
-def get_related_place(dcid,
-                      stat_vars_string,
-                      within_place=None,
-                      is_per_capita=None):
-  stat_vars = stat_vars_string.split('^')
-  return dc.get_related_place(dcid,
-                              stat_vars,
-                              within_place=within_place,
-                              is_per_capita=is_per_capita)
 
 
 def get_ranking_url(containing_dcid,
@@ -497,10 +481,9 @@ def api_ranking(dcid):
           gettext('Highest Crime Per Capita')
   }
   for parent_dcid in selected_parents:
-    stat_vars_string = '^'.join(ranking_stats.keys())
-    response = get_related_place(dcid,
-                                 stat_vars_string,
-                                 within_place=parent_dcid)
+    response = dc.related_place(dcid,
+                                ranking_stats.keys(),
+                                ancestor=parent_dcid)
     for stat_var, data in response.get('data', {}).items():
       result[ranking_stats[stat_var]].append({
           'name':
@@ -510,10 +493,10 @@ def api_ranking(dcid):
           'rankingUrl':
               get_ranking_url(parent_dcid, current_place_type, stat_var, dcid)
       })
-    response = get_related_place(dcid,
-                                 '^'.join(crime_statsvar.keys()),
-                                 within_place=parent_dcid,
-                                 is_per_capita=True)
+    response = dc.related_place(dcid,
+                                crime_statsvar.keys(),
+                                ancestor=parent_dcid,
+                                per_capita=True)
     for stat_var, data in response.get('data', {}).items():
       result[crime_statsvar[stat_var]].append({
           'name':
@@ -549,7 +532,7 @@ def get_state_code(dcids):
   result = {}
   if not dcids:
     return result
-  iso_codes = util.property_values(dcids, 'isoCode')
+  iso_codes = fetch.property_values(dcids, 'isoCode')
 
   for dcid in dcids:
     state_code = None
@@ -610,35 +593,29 @@ def api_display_name():
   return Response(json.dumps(result), 200, mimetype='application/json')
 
 
-@bp.route('/places-in')
-@cache.cached(timeout=3600 * 24, query_string=True)  # Cache for one day.
-def get_places_in():
-  """Gets DCIDs of places of a certain type contained in some places.
-
-  Sends the request to the Data Commons "/node/places-in" API.
-  See https://docs.datacommons.org/api/rest/place_in.html.
+@bp.route('/descendent')
+def descendent():
+  """Gets DCIDs of descendent places of a certain type.
 
   Returns:
-      Dict keyed by parent DCIDs with lists of child place DCIDs as values.
+      Dict keyed by ancestor DCIDs with lists of descendent place DCIDs as values.
   """
-  dcids = request.args.getlist("dcid")
-  place_type = request.args.get("placeType")
-  return Response(json.dumps(dc.get_places_in(dcids, place_type)),
-                  200,
-                  mimetype='application/json')
+  dcids = request.args.getlist("dcids")
+  descendent_type = request.args.get("descendentType")
+  return fetch.descendent_places(dcids, descendent_type)
 
 
-@bp.route('/places-in-names')
+@bp.route('/descendent/name')
 @cache.cached(timeout=3600 * 24, query_string=True)  # Cache for one day.
-def get_places_in_names():
+def descendent_names():
   """Gets names of places of a certain type contained in a place.
 
   Returns:
-      Dicts keyed by child place DCIDs with their names as values.
+      Dicts keyed by desccendent place DCIDs with their names as values.
   """
   dcid = request.args.get("dcid")
-  place_type = request.args.get("placeType")
-  child_places = dc.get_places_in([dcid], place_type)[dcid]
+  descendent_type = request.args.get("descendentType")
+  child_places = fetch.descendent_places([dcid], descendent_type).get(dcid, [])
   return Response(json.dumps(get_display_name(child_places)),
                   200,
                   mimetype='application/json')
@@ -652,17 +629,14 @@ def placeid2dcid():
   https://developers.google.com/places/web-service/autocomplete.
   """
   place_ids = request.args.getlist("placeIds")
-  resp = dc.resolve_id(place_ids, "placeId", "dcid")
-  entities = resp.get('entities', [])
+  resp = fetch.resolve_id(place_ids, "placeId", "dcid")
   result = {}
-  for entity in entities:
-    inId = entity.get('inId', "")
-    outIds = entity.get('outIds', [])
-    if outIds and inId:
-      dcid = outIds[0]
+  for place_id, dcids in resp.items():
+    if dcids:
+      dcid = dcids[0]
       if dcid in PLACE_OVERRIDE:
         dcid = PLACE_OVERRIDE[dcid]
-      result[inId] = dcid
+      result[place_id] = dcid
   return Response(json.dumps(result), 200, mimetype='application/json')
 
 
@@ -685,13 +659,12 @@ def coords2places():
         'latitude': latitudes[idx],
         'longitude': longitudes[idx]
     })
-  place_coordinates = dc.resolve_coordinates(coordinates).get(
-      "placeCoordinates", [])
+  place_coordinates = fetch.resolve_coordinates(coordinates)
   # Get the place types for each place dcid in the resolved place coordinates
   dcids_to_get_type = set()
-  for place_coord in place_coordinates:
-    dcids_to_get_type.update(place_coord.get('placeDcids', []))
-  place_types = util.property_values(list(dcids_to_get_type), 'typeOf')
+  for _, place_dcids in place_coordinates.items():
+    dcids_to_get_type.update(place_dcids)
+  place_types = fetch.property_values(list(dcids_to_get_type), 'typeOf')
   # Get the place names for the places that are of the requested place type
   dcids_to_get_name = filter(
       lambda place: place_type in place_types.get(place, []),
@@ -700,180 +673,18 @@ def coords2places():
   # Populate results. For each resolved place coordinate, if there is an
   # attached place of the requested place type, add it to the result.
   result = []
-  for place_coord in place_coordinates:
-    for place in place_coord.get("placeDcids", []):
+  for place_coord, places in place_coordinates.items():
+    lat, lng = place_coord.split('#')
+    for place in places:
       if place in place_names:
         place_name = place_names[place]
         if not place_name:
           place_name = place
         result.append({
-            'longitude': place_coord.get("longitude"),
-            'latitude': place_coord.get("latitude"),
+            'latitude': float(lat),
+            'longitude': float(lng),
             'placeDcid': place,
             'placeName': place_name
         })
         break
   return Response(json.dumps(result), 200, mimetype='application/json')
-
-
-@cache.cached(timeout=3600 * 24, query_string=True)  # Cache for one day.
-@bp.route('/ranking_chart/<path:dcid>')
-def api_ranking_chart(dcid):
-  """Gets the ranking data (including ranks, placename, value, date, and source) for a given place.
-
-  Return value example:
-  {
-      "statvar":{
-          "date":"2022-03",
-          "data":[
-              {
-                  "rank":1,
-                  "value":0.1,
-                  "placeDcid":"geoId/06",
-                  "placename":"California"
-              }
-          ],
-          "numDataPoints":1,
-          "exploreUrl":"/ranking/UnemploymentRate_Person_Rural/State/country/USA?h=geoId/06&unit=%",
-          "sources":[
-              "https://www.bls.gov/lau/"
-          ]
-      }
-  }
-  """
-  result = {}
-  # Get the parent place.
-  if dcid == EARTH_DCID:
-    parent_place_dcid = EARTH_DCID
-    place_type = "Country"
-  else:
-    place_type = get_place_type(dcid)
-    parent_place_list = parent_places([dcid]).get(dcid, [])
-    for parent in parent_place_list:
-      parent_place_dcid = parent.get("dcid", "")
-      parent_type = parent.get("type", "")
-      # All wanted place types plus continent except CensusZipCodeTabulationArea.
-      if parent_type == "Continent" or (
-          parent_type in ALL_WANTED_PLACE_TYPES and
-          parent_type != "CensusZipCodeTabulationArea"):
-        break
-    # If break is not encountered, return empty result.
-    else:
-      return Response(json.dumps(result), 200, mimetype='application/json')
-  # Read configs and build a dict to map stat vars to dicts of unit and scaling.
-  # Consider the configs with single sv but ignore denominators.
-  configs = get_ranking_chart_configs()
-  config_sv_to_info = {}
-  for config in configs:
-    stat_vars = config.get("statsVars")
-    if not stat_vars:
-      continue
-    sv = stat_vars[0]
-    info = {"scaling": config.get("scaling"), "unit": config.get("unit")}
-    config_sv_to_info[sv] = info
-  # Get the first stat var of each config.
-  stat_vars, _ = shared_api.get_stat_vars(configs)
-  # Make sure POPULATION_DCID is included in stat vars.
-  if POPULATION_DCID not in stat_vars:
-    stat_vars.add(POPULATION_DCID)
-  points_response = dc.obs_point_within(parent_place_dcid, place_type,
-                                        list(stat_vars), "LATEST")
-  obs_by_sv = points_response.get('byVariable', {})
-  if not points_response or not obs_by_sv:
-    return Response(json.dumps(result), 200, mimetype='application/json')
-  sv_facets = points_response.get('facets', {})
-  places_to_rank = set()
-  # POPULATION_DCID is used to filter out the places with the population less than PERSON_COUNT_LIMIT.
-  population_obs = obs_by_sv.get(POPULATION_DCID, {})
-  if population_obs:
-    for place_dcid, place_obs in population_obs.get('byEntity', {}).items():
-      place_data_points = place_obs.get('orderedFacets', [])
-      if place_data_points:
-        value = place_data_points[0]['observations'][0].get('value', 0)
-        if value > PERSON_COUNT_LIMIT:
-          places_to_rank.add(place_dcid)
-  # Get all the place names
-  place_names = get_i18n_name(list(places_to_rank))
-  # Loop through var_obs to build the result data.
-  for sv, sv_obs in obs_by_sv.items():
-    if sv not in config_sv_to_info:
-      continue
-    sources = set()
-    dates = set()
-    data_points = []
-    for place_dcid, place_data in sv_obs.get("byEntity", {}).items():
-      if place_dcid not in places_to_rank:
-        continue
-      # Example of place_data_points:
-      # [
-      #   {
-      #     "facetId": "12345",
-      #     "observations": [{"date": "2022", "value": 123}]
-      #   }
-      # ]
-      place_data_points = place_data.get("orderedFacets")
-      value, date, facet = None, None, None
-      if place_data_points:
-        place_data_point = place_data_points[0]
-        value = place_data_point['observations'][0].get("value")
-        date = place_data_point['observations'][0].get("date")
-        facet = place_data_point.get("facetId")
-      # Value is required for the calculation of ranking.
-      if value is None:
-        continue
-      place_name = place_names.get(place_dcid, "")
-      data_point = {
-          "placeDcid": place_dcid,
-          "value": value,
-          "placeName": place_name
-      }
-      data_points.append(data_point)
-      if date:
-        dates.add(date)
-      if facet:
-        provenanceUrl = sv_facets.get(str(facet), {}).get("provenanceUrl")
-        if provenanceUrl:
-          sources.add(provenanceUrl)
-    # Build URL for "explore more".
-    scaling = config_sv_to_info.get(sv, {}).get("scaling")
-    unit = config_sv_to_info.get(sv, {}).get("unit")
-    if dcid == EARTH_DCID:
-      parent_place_dcid = None
-    explore_url = urllib.parse.unquote(
-        url_for('ranking.ranking',
-                stat_var=sv,
-                place_type=place_type,
-                place_dcid=parent_place_dcid,
-                h=dcid,
-                scaling=scaling,
-                unit=unit))
-    # Calculate the ranking.
-    sorted_data_points = sorted(data_points,
-                                key=lambda x: x['value'],
-                                reverse=True)
-    for i, data_point in enumerate(sorted_data_points):
-      data_point['rank'] = i + 1
-    date_range = shared_api.get_date_range(dates)
-    sv_result = {
-        "date": date_range,
-        "data": sorted_data_points,
-        'numDataPoints': len(data_points),
-        'exploreUrl': explore_url,
-        'sources': sorted(list(sources))
-    }
-    result[sv] = sv_result
-  return Response(json.dumps(result), 200, mimetype='application/json')
-
-
-def get_ranking_chart_configs():
-  """ Gets all the chart configs that have ranking charts.
-
-  Returns:
-      List of chart configs that are ranking chart configs.
-  """
-  chart_config = current_app.config['CHART_CONFIG']
-  chart_configs = []
-  for config in chart_config:
-    if config.get('isRankingChart', False):
-      chart_configs.append(config)
-  return chart_configs

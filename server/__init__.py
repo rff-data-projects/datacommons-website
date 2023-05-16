@@ -31,6 +31,7 @@ from opencensus.ext.flask.flask_middleware import FlaskMiddleware
 from opencensus.ext.stackdriver.trace_exporter import StackdriverExporter
 from opencensus.trace.propagation import google_cloud_format
 from opencensus.trace.samplers import AlwaysOnSampler
+from selenium import webdriver
 
 import server.lib.config as libconfig
 from server.lib.disaster_dashboard import get_disaster_dashboard_data
@@ -178,6 +179,9 @@ def register_routes_common(app):
   from server.routes.translator import api as translator_api
   app.register_blueprint(translator_api.bp)
 
+  from server.routes.nl import api as nl_api
+  app.register_blueprint(nl_api.bp)
+
   from server.routes.shared_api import choropleth as shared_choropleth
   app.register_blueprint(shared_choropleth.bp)
 
@@ -219,19 +223,6 @@ def register_routes_common(app):
 def create_app():
   app = Flask(__name__, static_folder='dist', static_url_path='')
 
-  if os.environ.get('FLASK_ENV') in ['production', 'staging', 'autopush']:
-    createMiddleWare(app, StackdriverExporter())
-    import googlecloudprofiler
-
-    # Profiler initialization. It starts a daemon thread which continuously
-    # collects and uploads profiles. Best done as early as possible.
-    try:
-      # service and service_version can be automatically inferred when
-      # running on GCP.
-      googlecloudprofiler.start(verbose=3)
-    except (ValueError, NotImplementedError) as exc:
-      logging.error(exc)
-
   # Setup flask config
   cfg = libconfig.get_config()
   app.config.from_object(cfg)
@@ -256,8 +247,7 @@ def create_app():
     register_routes_custom_dc(app)
 
   register_routes_base_dc(app)
-  if (cfg.ENV == 'stanford' or os.environ.get('ENABLE_MODEL') == 'true' or
-      cfg.TEST or cfg.INTEGRATION or cfg.LOCAL and not cfg.LITE):
+  if cfg.SHOW_DISASTER or os.environ.get('ENABLE_MODEL') == 'true':
     # disaster dashboard tests require stanford's routes to be registered.
     register_routes_disasters(app)
 
@@ -352,6 +342,15 @@ def create_app():
       app.config['NL_TABLE'] = bt.get_nl_table()
     else:
       app.config['NL_TABLE'] = None
+
+    options = webdriver.chrome.options.Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    options.add_argument("enable-automation")
+    options.add_argument("--disable-infobars")
+    options.add_argument("--disable-dev-shm-usage")
+    app.config['SELENIUM'] = webdriver.Chrome(options=options)
 
   # Get and save the blocklisted svgs.
   blocklist_svg = []

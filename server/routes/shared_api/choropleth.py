@@ -19,7 +19,6 @@ import urllib.parse
 
 from flask import Blueprint
 from flask import current_app
-from flask import g
 from flask import make_response
 from flask import request
 from flask import Response
@@ -28,6 +27,7 @@ from flask import url_for
 from geojson_rewind import rewind
 
 from server.cache import cache
+import server.lib.fetch as fetch
 from server.lib.shared import is_float
 import server.lib.shared as shared
 import server.lib.util as lib_util
@@ -215,7 +215,7 @@ def geojson():
     return lib_util.gzip_compress_response(cached_geojson, is_json=True)
   geos = []
   if place_dcid and place_type:
-    geos = dc.get_places_in([place_dcid], place_type).get(place_dcid, [])
+    geos = fetch.descendent_places([place_dcid], place_type).get(place_dcid, [])
   if not geos:
     return Response(json.dumps({}), 200, mimetype='application/json')
   geojson_prop = CHOROPLETH_GEOJSON_PROPERTY_MAP.get(place_type, "")
@@ -226,11 +226,11 @@ def geojson():
   names_by_geo = place_api.get_display_name(geos)
   features = []
   if geojson_prop:
-    geojson_by_geo = lib_util.property_values(geos, geojson_prop)
+    geojson_by_geo = fetch.property_values(geos, geojson_prop)
     # geoId/46102 is known to only have unsimplified geojson so need to use
     # geoJsonCoordinates as the prop for this one place
     if 'geoId/46102' in geojson_by_geo:
-      geojson_by_geo['geoId/46102'] = lib_util.property_values(
+      geojson_by_geo['geoId/46102'] = fetch.property_values(
           ['geoId/46102'], 'geoJsonCoordinates').get('geoId/46102', '')
     for geo_id, json_text in geojson_by_geo.items():
       if json_text and geo_id in names_by_geo:
@@ -242,7 +242,7 @@ def geojson():
       "type": "FeatureCollection",
       "features": features,
       "properties": {
-          "current_geo": place_dcid
+          "currentGeo": place_dcid
       }
   }
   return lib_util.gzip_compress_response(result, is_json=True)
@@ -257,7 +257,7 @@ def node_geojson():
   if not geojson_prop:
     return "error: must provide a geoJsonProp field", 400
   features = []
-  geojson_by_node = lib_util.property_values(nodes, geojson_prop)
+  geojson_by_node = fetch.property_values(nodes, geojson_prop)
   for node_id, json_text in geojson_by_node.items():
     if json_text:
       geo_feature = get_geojson_feature(node_id, node_id, json_text)
@@ -267,24 +267,10 @@ def node_geojson():
       "type": "FeatureCollection",
       "features": features,
       "properties": {
-          "current_geo": ""
+          "currentGeo": ""
       }
   }
   return Response(json.dumps(result), 200, mimetype='application/json')
-
-
-def get_choropleth_configs():
-  """ Gets all the chart configs that have choropleth charts
-
-  Returns:
-      list of chart configs that are choropleth chart configs
-  """
-  chart_config = current_app.config['CHART_CONFIG']
-  chart_configs = []
-  for config in chart_config:
-    if config.get('isChoropleth', False):
-      chart_configs.append(config)
-  return chart_configs
 
 
 def get_denom_val(stat_date, denom_data):
@@ -350,100 +336,95 @@ def get_value(sv_data, denom, denom_data, scaling):
   return val * scaling
 
 
-@bp.route('/data/<path:dcid>')
-@cache.memoize(timeout=3600 * 24)  # Cache for one day.
+@bp.route('/data/<path:dcid>', methods=['POST'])
 def choropleth_data(dcid):
   """Get stats var data needed for choropleth charts for a given place
 
   API Returns:
       {
-          [stat var]: {
-              date: string,
-              data: {
-                  [dcid]: number,
-                  ...
-              },
-              numDataPoints: number,
-              exploreUrl: string,
-              sources: [],
-          },
-          ...
+        date: string,
+        data: {
+            [dcid]: number,
+            ...
+        },
+        numDataPoints: number,
+        exploreUrl: string,
+        sources: [],
       }
   """
-  configs = get_choropleth_configs()
-  stat_vars, denoms = shared.get_stat_vars(configs)
+  cc = request.json.get('spec', None)
+  if not cc:
+    return Response(json.dumps({}), 200, mimetype='application/json')
+  stat_vars, denoms = shared.get_stat_vars([cc])
   display_dcid, display_level = get_choropleth_display_level(dcid)
   geos = []
   if display_dcid and display_level:
-    geos = dc.get_places_in([display_dcid], display_level).get(display_dcid, [])
+    geos = fetch.descendent_places([display_dcid],
+                                   display_level).get(display_dcid, [])
   if not stat_vars or not geos:
     return Response(json.dumps({}), 200, mimetype='application/json')
   # Get data for all the stat vars for every place we will need and process the data
-  numerator_resp = lib_util.point_within_core(display_dcid, display_level,
-                                              list(stat_vars), 'LATEST', False)
-  denominator_resp = lib_util.series_core(list(geos), list(denoms), False)
+  numerator_resp = fetch.point_within_core(display_dcid, display_level,
+                                           list(stat_vars), 'LATEST', False)
+  denominator_resp = {}
+  if denoms:
+    denominator_resp = fetch.series_core(list(geos), list(denoms), False)
 
-  result = {}
-  # Process the data for each config
-  for cc in configs:
-    # we should only be making choropleths for configs with a single stat var
-    sv = cc['statsVars'][0]
-    cc_sv_data_values = numerator_resp.get('data', {}).get(sv, {})
-    denom = landing_page_api.get_denom(cc, True)
-    cc_denom_data = denominator_resp.get('data', {}).get(denom, {})
-    scaling = cc.get('scaling', 1)
-    if 'relatedChart' in cc:
-      scaling = cc['relatedChart'].get('scaling', scaling)
-    sources = set()
-    dates = set()
-    data_dict = dict()
-    # Process the data for each place we have stat var data for
-    for place_dcid in cc_sv_data_values:
-      dcid_sv_data = cc_sv_data_values.get(place_dcid, {})
-      place_denom_data = cc_denom_data.get(place_dcid, {})
-      # process and then update data_dict with the value for this
-      # place_dcid
-      val = get_value(dcid_sv_data, denom, place_denom_data, scaling)
-      if not val:
-        continue
-      data_dict[place_dcid] = val
-      # add the date of the stat var value for this place_dcid to the set
-      # of dates
-      dates.add(dcid_sv_data.get('date', ''))
-      # add stat var source and denom source (if there is a denom) to the
-      # set of sources
-      facetId = dcid_sv_data.get('facet', '')
-      source = numerator_resp['facets'].get(facetId,
-                                            {}).get('provenanceUrl', '')
+  # we should only be making choropleths for the first stat var
+  sv = cc['statsVars'][0]
+  cc_sv_data_values = numerator_resp.get('data', {}).get(sv, {})
+  denom = landing_page_api.get_denom(cc, True)
+  cc_denom_data = denominator_resp.get('data', {}).get(denom, {})
+  scaling = cc.get('scaling', 1)
+  if 'relatedChart' in cc:
+    scaling = cc['relatedChart'].get('scaling', scaling)
+  sources = set()
+  dates = set()
+  data_dict = dict()
+  # Process the data for each place we have stat var data for
+  for place_dcid in cc_sv_data_values:
+    dcid_sv_data = cc_sv_data_values.get(place_dcid, {})
+    place_denom_data = cc_denom_data.get(place_dcid, {})
+    # process and then update data_dict with the value for this
+    # place_dcid
+    val = get_value(dcid_sv_data, denom, place_denom_data, scaling)
+    if not val:
+      continue
+    data_dict[place_dcid] = val
+    # add the date of the stat var value for this place_dcid to the set
+    # of dates
+    dates.add(dcid_sv_data.get('date', ''))
+    # add stat var source and denom source (if there is a denom) to the
+    # set of sources
+    facetId = dcid_sv_data.get('facet', '')
+    source = numerator_resp['facets'].get(facetId, {}).get('provenanceUrl', '')
+    sources.add(source)
+    if denom:
+      facetId = place_denom_data['facet']
+      source = denominator_resp['facets'].get(facetId,
+                                              {}).get('provenanceUrl', '')
       sources.add(source)
-      if denom:
-        facetId = place_denom_data['facet']
-        source = denominator_resp['facets'].get(facetId,
-                                                {}).get('provenanceUrl', '')
-        sources.add(source)
-    # build the exploreUrl
-    # TODO: webdriver test to test that the right choropleth loads
-    is_scaled = (('relatedChart' in cc and
-                  cc['relatedChart'].get('scale', False)) or
-                 ('denominator' in cc))
-    url_anchor = '&pd={}&ept={}&sv={}'.format(dcid, display_level, sv)
-    if is_scaled:
-      url_anchor += "&pc=1"
-    explore_url = urllib.parse.unquote(url_for('tools.map', _anchor=url_anchor))
-    # process the set of sources and set of dates collected for this chart
-    # config
-    sources = filter(lambda x: x != "", sources)
-    date_range = shared.get_date_range(dates)
-    # build the result for this chart config and add it to the result
-    cc_result = {
-        'date': date_range,
-        'data': data_dict,
-        'numDataPoints': len(data_dict.values()),
-        # TODO (chejennifer): exploreUrl should link to choropleth tool once the tool is ready
-        'exploreUrl': explore_url,
-        'sources': sorted(list(sources))
-    }
-    result[sv] = cc_result
+  # build the exploreUrl
+  # TODO: webdriver test to test that the right choropleth loads
+  is_scaled = (('relatedChart' in cc and cc['relatedChart'].get('scale', False))
+               or ('denominator' in cc))
+  url_anchor = '&pd={}&ept={}&sv={}'.format(dcid, display_level, sv)
+  if is_scaled:
+    url_anchor += "&pc=1"
+  explore_url = urllib.parse.unquote(url_for('tools.map', _anchor=url_anchor))
+  # process the set of sources and set of dates collected for this chart
+  # config
+  sources = filter(lambda x: x != "", sources)
+  date_range = shared.get_date_range(dates)
+  # build the result for this chart config and add it to the result
+  result = {
+      'date': date_range,
+      'data': data_dict,
+      'numDataPoints': len(data_dict.values()),
+      # TODO (chejennifer): exploreUrl should link to choropleth tool once the tool is ready
+      'exploreUrl': explore_url,
+      'sources': sorted(list(sources))
+  }
   return Response(json.dumps(result), 200, mimetype='application/json')
 
 
@@ -463,7 +444,7 @@ def get_map_points():
                     400,
                     mimetype='application/json')
   geos = []
-  geos = dc.get_places_in([place_dcid], place_type).get(place_dcid, [])
+  geos = fetch.descendent_places([place_dcid], place_type).get(place_dcid, [])
   if not geos:
     return Response(json.dumps({}), 200, mimetype='application/json')
   names_by_geo = place_api.get_display_name(geos)
@@ -474,7 +455,7 @@ def get_map_points():
   # eg. epaGhgrpFacilityId/1003010 has latitude and longitude but no location
   # epa/120814013 which is an AirQualitySite has a location, but no latitude
   # or longitude
-  location_by_geo = lib_util.property_values(geos, "location")
+  location_by_geo = fetch.property_values(geos, "location")
   # dict of <dcid used to get latlon>: <dcid of the place>
   geo_by_latlon_subject = {}
   for geo_dcid in geos:
@@ -483,10 +464,10 @@ def get_map_points():
       geo_by_latlon_subject[location_dcid] = geo_dcid
     else:
       geo_by_latlon_subject[geo_dcid] = geo_dcid
-  lat_by_subject = lib_util.property_values(list(geo_by_latlon_subject.keys()),
-                                            "latitude")
-  lon_by_subject = lib_util.property_values(list(geo_by_latlon_subject.keys()),
-                                            "longitude")
+  lat_by_subject = fetch.property_values(list(geo_by_latlon_subject.keys()),
+                                         "latitude")
+  lon_by_subject = fetch.property_values(list(geo_by_latlon_subject.keys()),
+                                         "longitude")
 
   map_points_list = []
   for subject_dcid, latitude in lat_by_subject.items():

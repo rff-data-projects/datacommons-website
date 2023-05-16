@@ -16,7 +16,7 @@ from flask import Blueprint
 from flask import request
 
 from server.cache import cache
-import server.lib.util as util
+from server.lib import fetch
 
 # Define blueprint
 bp = Blueprint('point', __name__, url_prefix='/api/observations/point')
@@ -33,7 +33,7 @@ def point():
   if not variables:
     return 'error: must provide a `variables` field', 400
   date = request.args.get('date') or 'LATEST'
-  return util.point_core(entities, variables, date, False)
+  return fetch.point_core(entities, variables, date, False)
 
 
 @bp.route('/all')
@@ -47,7 +47,7 @@ def point_all():
   if not variables:
     return 'error: must provide a `variables` field', 400
   date = request.args.get('date', '')
-  return util.point_core(entities, variables, date, True)
+  return fetch.point_core(entities, variables, date, True)
 
 
 @bp.route('/within')
@@ -59,18 +59,18 @@ def point_within():
 
   This returns the observation for the preferred facet.
   """
-  parent_entity = request.args.get('parent_entity')
+  parent_entity = request.args.get('parentEntity')
   if not parent_entity:
-    return 'error: must provide a `parent_entity` field', 400
-  child_type = request.args.get('child_type')
+    return 'error: must provide a `parentEntity` field', 400
+  child_type = request.args.get('childType')
   if not child_type:
-    return 'error: must provide a `child_type` field', 400
+    return 'error: must provide a `childType` field', 400
   variables = list(filter(lambda x: x != "", request.args.getlist('variables')))
   if not variables:
     return 'error: must provide a `variables` field', 400
   date = request.args.get('date') or 'LATEST'
-  return util.point_within_core(parent_entity, child_type, variables, date,
-                                False)
+  return fetch.point_within_core(parent_entity, child_type, variables, date,
+                                 False)
 
 
 @bp.route('/within/all')
@@ -82,15 +82,15 @@ def point_within_all():
 
   This returns the observation for all facets.
   """
-  parent_entity = request.args.get('parent_entity')
+  parent_entity = request.args.get('parentEntity')
   if not parent_entity:
-    return 'error: must provide a `parent_entity` field', 400
-  child_type = request.args.get('child_type')
+    return 'error: must provide a `parentEntity` field', 400
+  child_type = request.args.get('childType')
   if not child_type:
-    return 'error: must provide a `child_type` field', 400
+    return 'error: must provide a `childType` field', 400
   variables = list(filter(lambda x: x != "", request.args.getlist('variables')))
   if not variables:
     return 'error: must provide a `variables` field', 400
   date = request.args.get('date') or 'LATEST'
-  return util.point_within_core(parent_entity, child_type, variables, date,
-                                True)
+  return fetch.point_within_core(parent_entity, child_type, variables, date,
+                                 True)

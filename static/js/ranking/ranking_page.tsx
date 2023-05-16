@@ -338,8 +338,8 @@ class Page extends React.Component<RankingPagePropType, RankingPageStateType> {
     const popPromise: Promise<SeriesApiResponse> = axios
       .get("/api/observations/series/within", {
         params: {
-          parent_entity: this.props.withinPlace,
-          child_type: this.props.placeType,
+          parentEntity: this.props.withinPlace,
+          childType: this.props.placeType,
           variables: [DEFAULT_POPULATION_DCID],
         },
         paramsSerializer: stringifyFn,
@@ -348,8 +348,8 @@ class Page extends React.Component<RankingPagePropType, RankingPageStateType> {
     const statPromise: Promise<PointApiResponse> = axios
       .get("/api/observations/point/within", {
         params: {
-          parent_entity: this.props.withinPlace,
-          child_type: this.props.placeType,
+          parentEntity: this.props.withinPlace,
+          childType: this.props.placeType,
           variables: [this.props.statVar],
           date: this.props.date,
         },
@@ -358,7 +358,7 @@ class Page extends React.Component<RankingPagePropType, RankingPageStateType> {
       .then((resp) => resp.data);
     const placeNamesPromise: Promise<Record<string, string>> = axios
       .get(
-        `/api/place/places-in-names?dcid=${this.props.withinPlace}&placeType=${this.props.placeType}`
+        `/api/place/descendent/name?dcid=${this.props.withinPlace}&descendentType=${this.props.placeType}`
       )
       .then((resp) => resp.data);
     Promise.all([popPromise, statPromise, placeNamesPromise]).then(

@@ -117,7 +117,9 @@ export function getEnclosedPlacesPromise(
   childPlaceType: string
 ): Promise<Array<NamedPlace>> {
   return axios
-    .get(`/api/place/places-in?dcid=${placeDcid}&placeType=${childPlaceType}`)
+    .get(
+      `/api/place/descendent?dcids=${placeDcid}&descendentType=${childPlaceType}`
+    )
     .then((resp) => {
       const enclosedPlaces = resp.data[placeDcid];
       if (_.isEmpty(enclosedPlaces)) {
@@ -125,7 +127,7 @@ export function getEnclosedPlacesPromise(
       }
       return enclosedPlaces.map((dcid) => {
         return {
-          dcid: dcid,
+          dcid,
           name: dcid,
         };
       });
@@ -173,7 +175,7 @@ export function getPlaceNames(
   }
   return axios
     .post("/api/place/name", {
-      dcids: dcids,
+      dcids,
     })
     .then((resp) => {
       return resp.data;

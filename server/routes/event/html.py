@@ -22,15 +22,15 @@ from typing import Dict, List
 from flask import abort
 from flask import Blueprint
 from flask import current_app
-from flask import escape
 from flask import render_template
 from google.protobuf.json_format import MessageToJson
+from markupsafe import escape
 
 from server.cache import cache
+from server.lib import fetch
 import server.lib.shared as shared_api
 import server.lib.subject_page_config as lib_subject_page_config
 import server.lib.util as lib_util
-import server.routes.shared_api.node as node_api
 import server.services.datacommons as dc
 
 DEFAULT_EVENT_DCID = ""
@@ -57,28 +57,8 @@ LOCATION_PROPERTIES = ['location', 'startLocation']
 bp = Blueprint("event", __name__, url_prefix='/event')
 
 
-def get_properties(dcid):
-  """Get and parse response from triples API.
-
-  Args:
-    dcid: DCID of the node to get properties for
-
-  Returns:
-    A list of properties and their values in the form of:
-      {dcid: property_dcid, value: <nodes>}
-    where <nodes> map to the "nodes" key in the triples API response.
-
-  The returned list is used to render property values in the event pages.
-  """
-  response = node_api.triples('out', dcid)
-  parsed = {}
-  for key, value in response.items():
-    parsed[key] = value["nodes"]
-  return parsed
-
-
 def get_property_value(dcid: str, prop: str) -> str:
-  result = lib_util.property_values([dcid], prop)
+  result = fetch.property_values([dcid], prop)
   if result[dcid]:
     return result[dcid][0]
   return None
@@ -138,12 +118,11 @@ def get_places(properties) -> Dict[str, List[str]]:
           'latitude': latitude,
           'longitude': longitude,
       }]
-      place_coordinates = dc.resolve_coordinates(coordinates).get(
-          "placeCoordinates", coordinates)
+      place_coordinates = fetch.resolve_coordinates(coordinates)
       dcids_to_get_type = set()
-      for place_coord in place_coordinates:
-        dcids_to_get_type.update(place_coord.get('placeDcids', []))
-      place_types = lib_util.property_values(list(dcids_to_get_type), 'typeOf')
+      for _, place_dcids in place_coordinates.items():
+        dcids_to_get_type.update(place_dcids)
+      place_types = fetch.property_values(list(dcids_to_get_type), 'typeOf')
       return place_types
 
 
@@ -176,7 +155,7 @@ def event_node(dcid=DEFAULT_EVENT_DCID):
     name_results = shared_api.names([dcid])
     if dcid in name_results.keys():
       node_name = name_results.get(dcid)
-    properties = get_properties(dcid)
+    properties = fetch.triples([dcid]).get(dcid, {})
   except Exception as e:
     logging.info(e)
 
