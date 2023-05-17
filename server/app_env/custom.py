@@ -20,6 +20,9 @@ class Config(_base.Config):
   CUSTOM = True
   NAME = "Custom Data Commons"
   GA_ACCOUNT = "G-C5D6R31ZZK"
+  OVERRIDE_CSS_PATH = '/custom_dc/custom/style.css'
+  LOGO_PATH = "/custom_dc/custom/logo.png"
+  SHOW_DISASTER = False
 
 
 class LocalConfig(Config, local.Config):

@@ -52,7 +52,9 @@
   <link rel="stylesheet" href={{url_for('static', filename='css/static.min.css', t=config['VERSION'])}}>
   {% block head %}
   {% endblock %}
-  <link href="/custom_dc/custom/style.css" rel="stylesheet">
+  {% if OVERRIDE_CSS_PATH %}
+  <link href="{{ OVERRIDE_CSS_PATH }}" rel="stylesheet">
+  {% endif %}
 </head>
 
 <body>

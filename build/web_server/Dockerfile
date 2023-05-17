@@ -30,7 +30,8 @@ RUN pip3 install --no-cache-dir \
 COPY static/package.json /workspace/static/package.json
 COPY static/package-lock.json /workspace/static/package-lock.json
 WORKDIR /workspace/static
-RUN npm install
+RUN npm update
+RUN npm install --omit=dev
 
 # Flask
 COPY server/. /workspace/server/
@@ -54,4 +55,4 @@ RUN chmod +x /usr/bin/chromedriver
 
 # Run server
 WORKDIR /workspace
-CMD exec gunicorn --timeout 60 --bind :8080 web_app:app
+CMD exec gunicorn --timeout 60 --bind :8080 -w 4 web_app:app
